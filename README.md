@@ -43,3 +43,7 @@ Python/Pygame/PyInstaller構成は現時点の採用案であり固定ではな�
 | docs/ | 設計、予定、評価 |
 
 設定スキーマと実行入口は、それぞれの機能実装時に追加する。
+
+## License
+
+このプロジェクトは [MIT License](LICENSE) の下で公開します。
