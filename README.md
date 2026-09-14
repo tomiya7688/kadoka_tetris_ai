@@ -10,6 +10,7 @@
 - 盤面、7-bag、ミノ、HOLD、移動・回転・固定・ライン消去
 - tick単位の意味的コマンド受付
 - キーボード入力とJSON Lines外部入力のadapter
+- プレイヤーから見える盤面幾何だけを切り出す不変Observation基盤
 - 評価関数型の配置探索AI
 - キャラクターAI「かどか」の専用評価基盤
 - 2プレイヤー対戦・AI対戦の初期基盤
@@ -111,6 +112,19 @@ python -m tetris.main --smoke-test
 
 現段階のPygame画面は最小実装で、完全なゲームUIや自動重力・ロック遅延等は今後拡張する。
 
+## Observation境界
+
+AIや画面認識がゲーム内部状態へ直接依存しないため、`tetris.observation` にプレイヤーから見える状態の共通表現を置く。
+
+第一段階の `BoardObservation` は以下だけを保持する。
+
+- 可視フィールドの幅・高さ
+- 可視範囲にある固定済みセル
+- 可視範囲にある操作中ミノのセル
+
+hidden rows、7-bag、乱数状態、内部GameState参照などはObservationへ含めない。
+将来は画面キャプチャ認識もこの共通形式を生成し、内蔵CPUも同じ観測境界から判断できる構成へ拡張する。
+
 ## localhost JSONL入力API
 
 外部AI・テストツールから操作する場合、明示的にポートを指定するとlocalhost限定のTCP APIを起動できる。
@@ -178,6 +192,7 @@ KadokaTetrisAI/
 | --- | --- |
 | `src/tetris/core/` | 盤面、ミノ、乱数、状態遷移 |
 | `src/tetris/application/` | コマンド受付、意味入力ルーティング、固定刻みの進行、対戦調整 |
+| `src/tetris/observation/` | プレイヤー可視情報の不変スナップショット |
 | `src/tetris/ai/` | 観測から操作を選ぶプレイAI |
 | `src/tetris/adapters/` | キーボード、JSONL API、外部入出力、Pygame表示 |
 | `config/` | ルール・AI重みのJSON |
