@@ -6,6 +6,13 @@ from tetris.adapters import JsonlApiServer
 
 
 class JsonlApiServerTests(unittest.TestCase):
+    def test_server_binds_only_to_loopback(self):
+        server = JsonlApiServer(0, {0})
+        try:
+            self.assertEqual(server.address[0], "127.0.0.1")
+        finally:
+            server.close()
+
     def test_valid_action_is_acknowledged_and_queued(self):
         server = JsonlApiServer(0, {0})
         server.start()
