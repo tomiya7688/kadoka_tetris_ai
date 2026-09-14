@@ -21,6 +21,7 @@ class RuntimePathsTests(unittest.TestCase):
             self.assertEqual(result, 0)
             self.assertTrue((root / "UserData" / "Config").is_dir())
             self.assertTrue((root / "UserData" / "Logs").is_dir())
+            self.assertTrue((root / "UserData" / "Config" / "input.json").is_file())
 
 
 if __name__ == "__main__":
