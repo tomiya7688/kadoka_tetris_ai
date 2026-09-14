@@ -3,24 +3,34 @@
 from tetris.application import Command, TickEngine
 from tetris.core import GameState
 
-from .keyboard import action_for_key
+from .keyboard_bindings import KeyboardBindings
 from .pygame_view import PygameView
 
 
 class PygameApp:
     """Connect Pygame events to the shared semantic command path."""
 
-    def __init__(self, seed: int | None = None, fps: int = 60):
+    def __init__(
+        self,
+        seed: int | None = None,
+        fps: int = 60,
+        bindings: KeyboardBindings | None = None,
+        player: int = 0,
+    ):
         if fps <= 0:
             raise ValueError("fps must be greater than zero")
+        self.bindings = bindings or KeyboardBindings.default()
+        if player not in self.bindings.players:
+            raise ValueError(f"unknown player: {player}")
         self.seed = seed
         self.fps = fps
+        self.player = player
 
     def run(self) -> int:
         import pygame
 
         game = GameState(seed=self.seed)
-        engine = TickEngine({0: game})
+        engine = TickEngine({self.player: game})
         view = PygameView()
         view.open(game.board.width, game.board.height - game.board.hidden_rows)
         clock = pygame.time.Clock()
@@ -36,11 +46,16 @@ class PygameApp:
                     if event.type != pygame.KEYDOWN:
                         continue
 
-                    action = action_for_key(pygame.key.name(event.key))
+                    action = self.bindings.action_for_key(
+                        self.player,
+                        pygame.key.name(event.key),
+                    )
                     if action is None:
                         continue
 
-                    engine.submit(Command(0, engine.tick, sequence, action))
+                    engine.submit(
+                        Command(self.player, engine.tick, sequence, action)
+                    )
                     sequence += 1
 
                 engine.advance()
