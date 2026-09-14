@@ -39,6 +39,20 @@ class ObservationTests(unittest.TestCase):
         self.assertFalse(hasattr(observation, "game_state"))
         self.assertFalse(hasattr(observation, "rng"))
 
+    def test_observation_copies_mutable_input_cells(self):
+        locked_cells = {(1, 2)}
+        observation = BoardObservation(
+            width=10,
+            height=20,
+            locked_cells=locked_cells,
+            active_cells=set(),
+        )
+
+        locked_cells.add((2, 3))
+
+        self.assertEqual(observation.locked_cells, frozenset({(1, 2)}))
+        self.assertIsInstance(observation.active_cells, frozenset)
+
     def test_observation_rejects_out_of_bounds_cells(self):
         with self.assertRaisesRegex(ValueError, "out of bounds"):
             BoardObservation(
