@@ -23,6 +23,19 @@ class RuntimePathsTests(unittest.TestCase):
             self.assertTrue((root / "UserData" / "Logs").is_dir())
             self.assertTrue((root / "UserData" / "Config" / "input.json").is_file())
 
+    def test_smoke_mode_can_start_and_stop_ephemeral_api(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = main(
+                [
+                    "--smoke-test",
+                    "--api-port",
+                    "0",
+                    "--data-root",
+                    temp_dir,
+                ]
+            )
+            self.assertEqual(result, 0)
+
 
 if __name__ == "__main__":
     unittest.main()
