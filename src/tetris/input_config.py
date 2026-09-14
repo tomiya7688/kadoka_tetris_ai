@@ -48,8 +48,13 @@ def _parse_bindings(data: object) -> KeyboardBindings:
         names = ", ".join(sorted(missing_keys))
         raise ValueError(f"missing input config fields: {names}")
 
-    if data["version"] != INPUT_CONFIG_VERSION:
-        raise ValueError(f"unsupported input config version: {data['version']!r}")
+    version = data["version"]
+    if (
+        not isinstance(version, int)
+        or isinstance(version, bool)
+        or version != INPUT_CONFIG_VERSION
+    ):
+        raise ValueError(f"unsupported input config version: {version!r}")
 
     players = data["players"]
     if not isinstance(players, dict):
