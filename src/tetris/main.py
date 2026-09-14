@@ -24,6 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="keyboard binding profile to use (0 or 1)",
     )
     parser.add_argument(
+        "--api-port",
+        type=int,
+        default=None,
+        help="enable localhost JSONL input API on this TCP port",
+    )
+    parser.add_argument(
         "--data-root",
         type=Path,
         default=None,
@@ -38,7 +44,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     bindings = load_keyboard_bindings(user_data / "Config")
     if args.smoke_test:
         return 0
-    return PygameApp(bindings=bindings, player=args.player).run()
+    return PygameApp(
+        bindings=bindings,
+        player=args.player,
+        api_port=args.api_port,
+    ).run()
 
 
 if __name__ == "__main__":
