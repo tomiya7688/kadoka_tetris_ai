@@ -36,6 +36,6 @@ class Command:
             or sequence < 0
         ):
             raise ValueError("tick and sequence must be nonnegative integers")
-        if action not in ALLOWED:
+        if not isinstance(action, str) or action not in ALLOWED:
             raise ValueError("unknown action")
         return cls(player, tick, sequence, action)
