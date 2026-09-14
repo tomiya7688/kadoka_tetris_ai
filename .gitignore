@@ -1,5 +1,6 @@
 .venv/
 venv/
+.build-venv/
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -7,10 +8,12 @@ __pycache__/
 .ruff_cache/
 build/
 dist/
+*.spec
 *.egg-info/
 .env
 .env.*
 !.env.example
+UserData/
 logs/
 runs/
 checkpoints/

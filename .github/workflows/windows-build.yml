@@ -1,0 +1,30 @@
+name: Windows distribution build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build and smoke-test distribution
+        shell: cmd
+        run: build.bat
+
+      - name: Upload portable distribution
+        uses: actions/upload-artifact@v4
+        with:
+          name: KadokaTetrisAI-windows
+          path: dist/KadokaTetrisAI/
+          if-no-files-found: error
