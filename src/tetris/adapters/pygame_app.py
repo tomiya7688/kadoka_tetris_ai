@@ -19,9 +19,14 @@ class PygameApp:
         player: int = 0,
         api_port: int | None = None,
     ):
-        if fps <= 0:
-            raise ValueError("fps must be greater than zero")
-        if api_port is not None and (api_port < 1 or api_port > 65535):
+        if not isinstance(fps, int) or isinstance(fps, bool) or fps <= 0:
+            raise ValueError("fps must be a positive integer")
+        if api_port is not None and (
+            not isinstance(api_port, int)
+            or isinstance(api_port, bool)
+            or api_port < 1
+            or api_port > 65535
+        ):
             raise ValueError("api_port must be between 1 and 65535")
 
         self.bindings = bindings or KeyboardBindings.default()
@@ -39,12 +44,13 @@ class PygameApp:
         engine = TickEngine({self.player: game})
         router = InputRouter(engine)
         view = PygameView()
-        api_server = self._start_api_server()
-
-        view.open(game.board.width, game.board.height - game.board.hidden_rows)
-        clock = pygame.time.Clock()
+        api_server: JsonlApiServer | None = None
 
         try:
+            view.open(game.board.width, game.board.height - game.board.hidden_rows)
+            api_server = self._start_api_server()
+            clock = pygame.time.Clock()
+
             running = True
             while running:
                 running = self._submit_keyboard_events(pygame, router)
