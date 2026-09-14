@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 REQUIRED_USER_DATA_DIRECTORIES = ("Config", "Logs")
+REQUIRED_USER_DATA_FILES = (Path("Config") / "input.json",)
 
 
 def verify_distribution(distribution_dir: Path) -> None:
@@ -25,6 +26,11 @@ def verify_distribution(distribution_dir: Path) -> None:
         path = user_data / name
         if not path.is_dir():
             raise RuntimeError(f"missing runtime directory: {path}")
+
+    for relative_path in REQUIRED_USER_DATA_FILES:
+        path = user_data / relative_path
+        if not path.is_file():
+            raise RuntimeError(f"missing runtime file: {path}")
 
 
 def main(argv: list[str]) -> int:
