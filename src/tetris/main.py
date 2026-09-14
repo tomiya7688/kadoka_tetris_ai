@@ -4,6 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
+from tetris.adapters.jsonl_api_server import JsonlApiServer
 from tetris.adapters.pygame_app import PygameApp
 from tetris.input_config import load_keyboard_bindings
 from tetris.runtime_paths import ensure_user_data
@@ -24,6 +25,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="keyboard binding profile to use (0 or 1)",
     )
     parser.add_argument(
+        "--api-port",
+        type=int,
+        default=None,
+        help="enable localhost JSONL input API on this TCP port",
+    )
+    parser.add_argument(
         "--data-root",
         type=Path,
         default=None,
@@ -37,8 +44,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     user_data = ensure_user_data(args.data_root)
     bindings = load_keyboard_bindings(user_data / "Config")
     if args.smoke_test:
+        return _run_smoke_test(args.api_port, args.player)
+    return PygameApp(
+        bindings=bindings,
+        player=args.player,
+        api_port=args.api_port,
+    ).run()
+
+
+def _run_smoke_test(api_port: int | None, player: int) -> int:
+    if api_port is None:
         return 0
-    return PygameApp(bindings=bindings, player=args.player).run()
+    server = JsonlApiServer(api_port, {player})
+    server.start()
+    server.close()
+    return 0
 
 
 if __name__ == "__main__":

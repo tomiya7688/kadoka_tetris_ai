@@ -15,7 +15,7 @@ def verify_distribution(distribution_dir: Path) -> None:
         raise RuntimeError(f"missing executable: {executable}")
 
     subprocess.run(
-        [str(executable), "--smoke-test"],
+        [str(executable), "--smoke-test", "--api-port", "0"],
         cwd=distribution_dir,
         check=True,
         timeout=15,
