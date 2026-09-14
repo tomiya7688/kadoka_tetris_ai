@@ -28,5 +28,5 @@ class InputAction:
             raise ValueError("player must be a nonnegative integer")
         if self.player < 0:
             raise ValueError("player must be a nonnegative integer")
-        if self.action not in SEMANTIC_ACTIONS:
+        if not isinstance(self.action, str) or self.action not in SEMANTIC_ACTIONS:
             raise ValueError("unknown action")
