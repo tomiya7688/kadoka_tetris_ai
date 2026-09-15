@@ -45,6 +45,7 @@ CPU比較では同じseed範囲を使用する。
 ## 結果の識別情報
 
 JSONには `benchmark_schema_version`、CPUプロファイル情報、評価器情報を含める。
+現在のbenchmark schemaはv3。
 
 - CPU実装ID
 - CPUレベル名
@@ -63,6 +64,11 @@ JSONには `benchmark_schema_version`、CPUプロファイル情報、評価器�
 
 - 配置したミノ数
 - 消去ライン数 / lines per placement
+- 生成攻撃量 / attack per placement / attack per line
+- T-Spin回数
+- Perfect Clear回数
+- B2B difficult clear回数
+- 最大Combo
 - game overの有無
 - piece limit到達の有無
 - tick limit到達の有無
@@ -76,6 +82,7 @@ JSONには `benchmark_schema_version`、CPUプロファイル情報、評価器�
 
 レポート全体には複数ゲームの合計・平均値も含める。
 `--benchmark-cpu all` の比較レポートは `summary_by_level` と各レベルの完全な個別レポートを保持する。
+weight sweepの `summary_by_candidate` にも攻撃量やT-Spin等の対戦出力指標が含まれるため、単純なライン数だけでなく火力の変化も比較できる。
 
 ## 公平性
 
@@ -100,7 +107,10 @@ TickEngine
 ベンチマーク専用にGameState内部値をCPUへ渡す経路は作らない。
 盤面品質メトリクスもPlayerObservationの可視盤面から算出する。
 
-ベンチマークハーネス自身は試合終了判定や集計のためにゲームのライン数・game over状態を読むが、それらはCPUの判断入力には使用しない。
+攻撃量、T-Spin、Perfect Clear、B2B、ComboはLockEventから**計測専用**に集計する。
+これらの内部イベント値を標準CPUの判断入力へ追加しないため、visible-only境界は維持される。
+
+ベンチマークハーネス自身は試合終了判定や集計のためにゲームのライン数・game over状態・LockEventを読むが、それらはCPUの判断入力には使用しない。
 
 ## 停止条件
 
@@ -111,7 +121,7 @@ TickEngine
 
 - CSV出力
 - 並列実行
-- 評価重みの自動・半自動探索
-- 対戦ベンチマーク
+- Garbage受信量・相殺量・勝敗を含むCPU-vs-CPU対戦ベンチマーク
+- T-Spin Mini / SRS準拠判定による攻撃指標の精密化
 - Block Slime / Kadokaモデルとの共通ベンチマーク
 - CIでの性能退行検出

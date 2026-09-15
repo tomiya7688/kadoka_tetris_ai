@@ -2,7 +2,7 @@
 
 from time import perf_counter
 
-from tetris.application import InputRouter, TickEngine
+from tetris.application import InputRouter, TickEngine, attack_for_event
 from tetris.core import GameState
 from tetris.cpu import (
     STANDARD_CPU_IMPLEMENTATION_ID,
@@ -89,6 +89,11 @@ class StandardCpuBenchmark:
         ticks = 0
         decision_calls = 0
         decision_seconds = 0.0
+        attack_generated = 0
+        t_spins = 0
+        perfect_clears = 0
+        back_to_back_clears = 0
+        max_combo = 0
         stack_height_sum = 0
         holes_sum = 0
         bumpiness_sum = 0
@@ -114,6 +119,14 @@ class StandardCpuBenchmark:
                 continue
 
             placements += 1
+            event = game.last_lock_event
+            if event is not None:
+                attack_generated += attack_for_event(event)
+                t_spins += int(event.t_spin)
+                perfect_clears += int(event.perfect_clear)
+                back_to_back_clears += int(event.back_to_back)
+                max_combo = max(max_combo, event.combo)
+
             observation = self.observer.observe(game)
             final_metrics = VisibleBoardMetrics.from_observation(observation.board)
             stack_height_sum += final_metrics.stack_height
@@ -128,6 +141,11 @@ class StandardCpuBenchmark:
             seed=seed,
             placements=placements,
             lines=game.lines,
+            attack_generated=attack_generated,
+            t_spins=t_spins,
+            perfect_clears=perfect_clears,
+            back_to_back_clears=back_to_back_clears,
+            max_combo=max_combo,
             ticks=ticks,
             game_over=game.game_over,
             reached_piece_limit=placements >= self.max_pieces,
