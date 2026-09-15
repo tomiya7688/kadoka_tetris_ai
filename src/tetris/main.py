@@ -1,11 +1,13 @@
 """Application entry point for source and frozen builds."""
 
 import argparse
+import json
 from pathlib import Path
 from typing import Sequence
 
 from tetris.adapters.jsonl_api_server import JsonlApiServer
 from tetris.adapters.pygame_app import PygameApp
+from tetris.benchmark import StandardCpuBenchmark
 from tetris.cpu import StandardCpuStrategy, standard_cpu_profile
 from tetris.input_config import load_keyboard_bindings
 from tetris.runtime_paths import ensure_user_data
@@ -38,6 +40,36 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable the built-in visible-only standard CPU",
     )
     parser.add_argument(
+        "--benchmark-cpu",
+        choices=("easy", "normal", "hard"),
+        default=None,
+        help="run the selected standard CPU headlessly and exit",
+    )
+    parser.add_argument(
+        "--benchmark-games",
+        type=int,
+        default=1,
+        help="number of reproducible headless benchmark games",
+    )
+    parser.add_argument(
+        "--benchmark-max-pieces",
+        type=int,
+        default=100,
+        help="maximum locked pieces per benchmark game",
+    )
+    parser.add_argument(
+        "--benchmark-seed",
+        type=int,
+        default=0,
+        help="first benchmark RNG seed; later games increment it by one",
+    )
+    parser.add_argument(
+        "--benchmark-output",
+        type=Path,
+        default=None,
+        help="benchmark JSON output path (default: UserData/Logs/cpu-benchmark.json)",
+    )
+    parser.add_argument(
         "--data-root",
         type=Path,
         default=None,
@@ -49,6 +81,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     user_data = ensure_user_data(args.data_root)
+
+    if args.benchmark_cpu is not None:
+        return _run_cpu_benchmark(args, user_data)
+
     bindings = load_keyboard_bindings(user_data / "Config")
     if args.smoke_test:
         return _run_smoke_test(args.api_port, args.player)
@@ -63,6 +99,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         api_port=args.api_port,
         cpu_strategy=cpu_strategy,
     ).run()
+
+
+def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
+    benchmark = StandardCpuBenchmark(
+        args.benchmark_cpu,
+        max_pieces=args.benchmark_max_pieces,
+    )
+    report = benchmark.run(
+        game_count=args.benchmark_games,
+        seed=args.benchmark_seed,
+    )
+    output_path = args.benchmark_output or user_data / "Logs" / "cpu-benchmark.json"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(report.to_dict(), ensure_ascii=False, indent=2)
+    output_path.write_text(payload + "\n", encoding="utf-8")
+    print(payload)
+    return 0
 
 
 def _run_smoke_test(api_port: int | None, player: int) -> int:
