@@ -6,6 +6,7 @@ from typing import Sequence
 
 from tetris.adapters.jsonl_api_server import JsonlApiServer
 from tetris.adapters.pygame_app import PygameApp
+from tetris.cpu import StandardCpuStrategy, standard_cpu_profile
 from tetris.input_config import load_keyboard_bindings
 from tetris.runtime_paths import ensure_user_data
 
@@ -31,6 +32,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="enable localhost JSONL input API on this TCP port",
     )
     parser.add_argument(
+        "--cpu-level",
+        choices=("off", "easy", "normal", "hard"),
+        default="off",
+        help="enable the built-in visible-only standard CPU",
+    )
+    parser.add_argument(
         "--data-root",
         type=Path,
         default=None,
@@ -45,10 +52,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     bindings = load_keyboard_bindings(user_data / "Config")
     if args.smoke_test:
         return _run_smoke_test(args.api_port, args.player)
+
+    cpu_strategy = None
+    if args.cpu_level != "off":
+        cpu_strategy = StandardCpuStrategy(standard_cpu_profile(args.cpu_level))
+
     return PygameApp(
         bindings=bindings,
         player=args.player,
         api_port=args.api_port,
+        cpu_strategy=cpu_strategy,
     ).run()
 
 
