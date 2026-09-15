@@ -8,7 +8,7 @@ from typing import Sequence
 
 from tetris.adapters.jsonl_api_server import JsonlApiServer
 from tetris.adapters.pygame_app import PygameApp
-from tetris.benchmark import StandardCpuBenchmark
+from tetris.benchmark import StandardCpuBenchmark, StandardCpuComparison
 from tetris.cpu import StandardCpuStrategy, standard_cpu_profile
 from tetris.input_config import load_keyboard_bindings
 from tetris.runtime_paths import ensure_user_data
@@ -42,9 +42,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--benchmark-cpu",
-        choices=("easy", "normal", "hard"),
+        choices=("easy", "normal", "hard", "all"),
         default=None,
-        help="run the selected standard CPU headlessly and exit",
+        help="run one standard CPU level, or compare all levels headlessly",
     )
     parser.add_argument(
         "--benchmark-games",
@@ -103,10 +103,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
-    benchmark = StandardCpuBenchmark(
-        args.benchmark_cpu,
-        max_pieces=args.benchmark_max_pieces,
-    )
+    if args.benchmark_cpu == "all":
+        benchmark = StandardCpuComparison(max_pieces=args.benchmark_max_pieces)
+    else:
+        benchmark = StandardCpuBenchmark(
+            args.benchmark_cpu,
+            max_pieces=args.benchmark_max_pieces,
+        )
+
     report = benchmark.run(
         game_count=args.benchmark_games,
         seed=args.benchmark_seed,

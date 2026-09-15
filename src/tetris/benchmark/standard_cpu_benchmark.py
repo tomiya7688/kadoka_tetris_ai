@@ -4,11 +4,16 @@ from time import perf_counter
 
 from tetris.application import InputRouter, TickEngine
 from tetris.core import GameState
-from tetris.cpu import StandardCpuStrategy, VisibleCpuController, standard_cpu_profile
+from tetris.cpu import (
+    STANDARD_CPU_IMPLEMENTATION_ID,
+    StandardCpuStrategy,
+    VisibleCpuController,
+    standard_cpu_profile,
+)
 from tetris.observation import VisiblePlayerObserver
 
 from .board_metrics import VisibleBoardMetrics
-from .result import CpuBenchmarkGameResult, CpuBenchmarkReport
+from .result import CpuBenchmarkGameResult, CpuBenchmarkReport, CpuProfileSnapshot
 
 
 class StandardCpuBenchmark:
@@ -45,6 +50,13 @@ class StandardCpuBenchmark:
         return CpuBenchmarkReport(
             level=self.level,
             max_pieces=self.max_pieces,
+            profile=CpuProfileSnapshot(
+                implementation_id=STANDARD_CPU_IMPLEMENTATION_ID,
+                name=self.profile.name,
+                search_depth=self.profile.search_depth,
+                action_interval_ticks=self.profile.action_interval_ticks,
+                lookahead_discount=self.profile.lookahead_discount,
+            ),
             games=games,
         )
 

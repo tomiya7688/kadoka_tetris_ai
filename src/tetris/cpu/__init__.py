@@ -1,4 +1,5 @@
 from .standard_cpu_profile import (
+    STANDARD_CPU_IMPLEMENTATION_ID,
     STANDARD_CPU_PROFILES,
     StandardCpuProfile,
     standard_cpu_profile,
