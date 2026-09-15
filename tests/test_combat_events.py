@@ -22,6 +22,16 @@ def _prepare_t_spin_single(game: GameState) -> None:
     game.game_over = False
 
 
+def _prepare_four_line_clear(game: GameState) -> None:
+    if game.board.width != 4 or game.board.height != 4:
+        raise ValueError("test setup requires a 4x4 board")
+    for y in range(4):
+        for x in range(3):
+            _lock_single_cell(game, x, y)
+    game.active = ActivePiece(PieceType.I, x=3, y=0, rotation=1)
+    game.game_over = False
+
+
 class CombatEventTests(unittest.TestCase):
     def test_t_spin_single_creates_normalized_lock_event(self):
         game = GameState(seed=1, width=4, visible_height=4, hidden_rows=0)
@@ -50,6 +60,24 @@ class CombatEventTests(unittest.TestCase):
         event = game.lock()
 
         self.assertFalse(event.t_spin)
+
+    def test_consecutive_tetrises_track_combo_b2b_and_perfect_clear(self):
+        game = GameState(seed=7, width=4, visible_height=4, hidden_rows=0)
+        _prepare_four_line_clear(game)
+        first = game.lock()
+
+        self.assertEqual(first.lines, 4)
+        self.assertEqual(first.combo, 1)
+        self.assertFalse(first.back_to_back)
+        self.assertTrue(first.perfect_clear)
+
+        _prepare_four_line_clear(game)
+        second = game.lock()
+
+        self.assertEqual(second.lines, 4)
+        self.assertEqual(second.combo, 2)
+        self.assertTrue(second.back_to_back)
+        self.assertTrue(second.perfect_clear)
 
     def test_attack_table_supports_t_spin_b2b_combo_and_perfect_clear(self):
         self.assertEqual(attack_for_clear(1, t_spin=True), 2)
