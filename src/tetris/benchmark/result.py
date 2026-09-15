@@ -15,10 +15,13 @@ class CpuBenchmarkGameResult:
     tick_limit_reached: bool
     final_stack_height: int
     final_holes: int
+    final_bumpiness: int
     peak_stack_height: int
     peak_holes: int
+    peak_bumpiness: int
     average_stack_height: float
     average_holes: float
+    average_bumpiness: float
     decision_calls: int
     decision_seconds: float
 
@@ -28,16 +31,20 @@ class CpuBenchmarkGameResult:
             "seed": self.seed,
             "placements": self.placements,
             "lines": self.lines,
+            "lines_per_placement": round(self.lines / max(1, self.placements), 4),
             "ticks": self.ticks,
             "game_over": self.game_over,
             "reached_piece_limit": self.reached_piece_limit,
             "tick_limit_reached": self.tick_limit_reached,
             "final_stack_height": self.final_stack_height,
             "final_holes": self.final_holes,
+            "final_bumpiness": self.final_bumpiness,
             "peak_stack_height": self.peak_stack_height,
             "peak_holes": self.peak_holes,
+            "peak_bumpiness": self.peak_bumpiness,
             "average_stack_height": round(self.average_stack_height, 4),
             "average_holes": round(self.average_holes, 4),
+            "average_bumpiness": round(self.average_bumpiness, 4),
             "decision_calls": self.decision_calls,
             "decision_seconds": round(self.decision_seconds, 6),
             "decision_ms_per_placement": round(
@@ -75,6 +82,10 @@ class CpuBenchmarkReport:
                 "game_overs": total_game_overs,
                 "average_placements": round(total_placements / max(1, count), 4),
                 "average_lines": round(total_lines / max(1, count), 4),
+                "lines_per_placement": round(
+                    total_lines / max(1, total_placements),
+                    4,
+                ),
                 "average_ticks_per_placement": round(
                     total_ticks / max(1, total_placements),
                     4,
@@ -90,6 +101,10 @@ class CpuBenchmarkReport:
                 ),
                 "average_peak_holes": round(
                     sum(game.peak_holes for game in self.games) / max(1, count),
+                    4,
+                ),
+                "average_peak_bumpiness": round(
+                    sum(game.peak_bumpiness for game in self.games) / max(1, count),
                     4,
                 ),
             },
