@@ -71,3 +71,32 @@ CPUを使用しない通常プレイでは設定内容を読み込まないた�
 
 実際の出力には6項目すべて含まれる。
 同じseedで重みだけ変更して比較することで、コード変更なしで評価関数の調整結果を確認できる。
+
+## 半自動weight sweep
+
+現在の `standard_cpu.json` を基準に、1つの重みだけを弱めた候補・強めた候補を同じseed列で一括比較できる。
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m tetris.main --benchmark-weight-sweep normal --benchmark-games 10 --benchmark-max-pieces 200 --benchmark-seed 0
+```
+
+既定の `--benchmark-weight-step 0.25` では以下の13候補を作る。
+
+- baseline
+- 6重みそれぞれの `lower`
+- 6重みそれぞれの `higher`
+
+基準値が0以外なら `0.75x` / `1.25x`、基準値が0なら `-0.25` / `+0.25` を候補にする。
+stepは例えば10%なら次のように指定する。
+
+```text
+--benchmark-weight-step 0.10
+```
+
+全候補は同じseed範囲・同じCPUレベル・同じ配置上限で走る。
+結果は既定で `UserData/Logs/cpu-weight-sweep.json` に保存し、`summary_by_candidate` で候補ごとの集計を素早く比較できる。
+各候補には完全な個別ベンチマーク結果も保存する。
+
+現段階では結果を見て設定を自動上書きしない。
+単純なライン数だけで自動最適化すると、穴・生存性・将来の対戦火力などを犠牲にする可能性があるため、まず比較データを安全に集める段階とする。
