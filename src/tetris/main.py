@@ -8,6 +8,7 @@ from typing import Sequence
 
 from tetris.adapters.jsonl_api_server import JsonlApiServer
 from tetris.adapters.pygame_app import PygameApp
+from tetris.adapters.pygame_versus_app import PygameVersusApp
 from tetris.benchmark import (
     StandardCpuBenchmark,
     StandardCpuComparison,
@@ -48,6 +49,23 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("off", "easy", "normal", "hard"),
         default="off",
         help="enable the built-in visible-only standard CPU",
+    )
+    parser.add_argument(
+        "--versus",
+        action="store_true",
+        help="open the two-player visible versus screen",
+    )
+    parser.add_argument(
+        "--versus-cpu-level",
+        choices=("off", "easy", "normal", "hard"),
+        default="off",
+        help="in versus mode, let the built-in CPU control player 2",
+    )
+    parser.add_argument(
+        "--versus-garbage-seed",
+        type=int,
+        default=0,
+        help="deterministic garbage-hole seed for versus mode",
     )
     benchmark_mode = parser.add_mutually_exclusive_group()
     benchmark_mode.add_argument(
@@ -114,6 +132,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.smoke_test:
         return _run_smoke_test(args.api_port, args.player)
 
+    if args.versus:
+        return _run_versus(args, bindings, config_dir)
+
     cpu_strategy = None
     if args.cpu_level != "off":
         cpu_config = load_standard_cpu_config(config_dir)
@@ -126,6 +147,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         bindings=bindings,
         player=args.player,
         api_port=args.api_port,
+        cpu_strategy=cpu_strategy,
+    ).run()
+
+
+def _run_versus(
+    args: argparse.Namespace,
+    bindings,
+    config_dir: Path,
+) -> int:
+    if args.api_port is not None:
+        raise ValueError("localhost API is not yet available in versus mode")
+    if args.cpu_level != "off":
+        raise ValueError("use --versus-cpu-level for versus mode")
+
+    cpu_strategy = None
+    if args.versus_cpu_level != "off":
+        cpu_config = load_standard_cpu_config(config_dir)
+        cpu_strategy = StandardCpuStrategy(
+            standard_cpu_profile(args.versus_cpu_level),
+            weights=cpu_config.weights,
+        )
+    return PygameVersusApp(
+        bindings=bindings,
+        garbage_seed=args.versus_garbage_seed,
         cpu_strategy=cpu_strategy,
     ).run()
 
