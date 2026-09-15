@@ -3,6 +3,9 @@
 from dataclasses import dataclass
 
 
+STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-v1"
+
+
 @dataclass(frozen=True)
 class StandardCpuProfile:
     name: str
