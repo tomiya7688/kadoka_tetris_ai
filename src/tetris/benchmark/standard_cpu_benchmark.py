@@ -61,8 +61,10 @@ class StandardCpuBenchmark:
         decision_seconds = 0.0
         stack_height_sum = 0
         holes_sum = 0
+        bumpiness_sum = 0
         peak_stack_height = 0
         peak_holes = 0
+        peak_bumpiness = 0
         final_metrics = VisibleBoardMetrics(0, 0, 0)
         tick_limit = self.max_pieces * self.max_ticks_per_piece
 
@@ -86,8 +88,10 @@ class StandardCpuBenchmark:
             final_metrics = VisibleBoardMetrics.from_observation(observation.board)
             stack_height_sum += final_metrics.stack_height
             holes_sum += final_metrics.holes
+            bumpiness_sum += final_metrics.bumpiness
             peak_stack_height = max(peak_stack_height, final_metrics.stack_height)
             peak_holes = max(peak_holes, final_metrics.holes)
+            peak_bumpiness = max(peak_bumpiness, final_metrics.bumpiness)
 
         return CpuBenchmarkGameResult(
             level=self.level,
@@ -100,10 +104,13 @@ class StandardCpuBenchmark:
             tick_limit_reached=ticks >= tick_limit and placements < self.max_pieces,
             final_stack_height=final_metrics.stack_height,
             final_holes=final_metrics.holes,
+            final_bumpiness=final_metrics.bumpiness,
             peak_stack_height=peak_stack_height,
             peak_holes=peak_holes,
+            peak_bumpiness=peak_bumpiness,
             average_stack_height=stack_height_sum / max(1, placements),
             average_holes=holes_sum / max(1, placements),
+            average_bumpiness=bumpiness_sum / max(1, placements),
             decision_calls=decision_calls,
             decision_seconds=decision_seconds,
         )
