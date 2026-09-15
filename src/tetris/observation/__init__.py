@@ -1,2 +1,4 @@
 from .board_observation import BoardObservation, Cell
+from .player_observation import PlayerObservation
 from .visible_board_observer import VisibleBoardObserver
+from .visible_player_observer import VisiblePlayerObserver
