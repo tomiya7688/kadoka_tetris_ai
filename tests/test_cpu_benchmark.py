@@ -9,6 +9,7 @@ from tetris.benchmark import (
     StandardCpuComparison,
     VisibleBoardMetrics,
 )
+from tetris.cpu import VisibleBoardWeights
 from tetris.main import main
 from tetris.observation import BoardObservation
 
@@ -56,6 +57,19 @@ class CpuBenchmarkTests(unittest.TestCase):
         self.assertIn("decision_ms_per_placement", payload["summary"])
         self.assertEqual(payload["profile"]["implementation_id"], "standard-visible-v1")
         self.assertEqual(payload["profile"]["search_depth"], 1)
+        self.assertEqual(payload["evaluator"]["evaluator_id"], "visible-board-v1")
+        self.assertEqual(payload["evaluator"]["weights"]["holes"], -7.0)
+
+    def test_benchmark_records_injected_weights(self):
+        weights = VisibleBoardWeights(holes=-15.0, bumpiness=-0.05)
+        payload = StandardCpuBenchmark(
+            "easy",
+            max_pieces=1,
+            weights=weights,
+        ).run(game_count=1, seed=42).to_dict()
+
+        self.assertEqual(payload["evaluator"]["weights"]["holes"], -15.0)
+        self.assertEqual(payload["evaluator"]["weights"]["bumpiness"], -0.05)
 
     def test_comparison_uses_identical_seed_range_for_every_level(self):
         report = StandardCpuComparison(max_pieces=1).run(
@@ -66,6 +80,7 @@ class CpuBenchmarkTests(unittest.TestCase):
 
         self.assertEqual(payload["mode"], "comparison")
         self.assertEqual(set(payload["levels"]), {"easy", "normal", "hard"})
+        self.assertEqual(payload["evaluator"]["evaluator_id"], "visible-board-v1")
         for level_report in report.reports:
             self.assertEqual([game.seed for game in level_report.games], [60, 61])
             self.assertEqual(level_report.max_pieces, 1)
@@ -98,6 +113,48 @@ class CpuBenchmarkTests(unittest.TestCase):
             self.assertEqual(payload["game_count"], 1)
             self.assertEqual(payload["games"][0]["seed"], 50)
             self.assertEqual(payload["games"][0]["placements"], 2)
+            self.assertTrue((root / "UserData" / "Config" / "standard_cpu.json").is_file())
+
+    def test_cli_uses_custom_weight_config(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            config_dir = root / "UserData" / "Config"
+            config_dir.mkdir(parents=True)
+            config_path = config_dir / "standard_cpu.json"
+            config_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "weights": {
+                            "cleared_lines": 3.0,
+                            "aggregate_height": -0.35,
+                            "max_height": -0.45,
+                            "holes": -20.0,
+                            "covered_hole_cells": -1.25,
+                            "bumpiness": -0.25,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            output = root / "custom-benchmark.json"
+
+            exit_code = main(
+                [
+                    "--benchmark-cpu",
+                    "easy",
+                    "--benchmark-max-pieces",
+                    "1",
+                    "--benchmark-output",
+                    str(output),
+                    "--data-root",
+                    str(root),
+                ]
+            )
+
+            self.assertEqual(exit_code, 0)
+            payload = json.loads(output.read_text(encoding="utf-8"))
+            self.assertEqual(payload["evaluator"]["weights"]["holes"], -20.0)
 
     def test_cli_all_writes_same_seed_comparison_json(self):
         with tempfile.TemporaryDirectory() as temp_dir:

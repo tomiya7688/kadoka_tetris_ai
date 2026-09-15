@@ -4,6 +4,7 @@ from .result import (
     CpuBenchmarkComparisonReport,
     CpuBenchmarkGameResult,
     CpuBenchmarkReport,
+    CpuEvaluatorSnapshot,
     CpuProfileSnapshot,
 )
 from .standard_cpu_benchmark import StandardCpuBenchmark

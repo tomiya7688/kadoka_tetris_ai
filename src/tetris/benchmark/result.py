@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-BENCHMARK_SCHEMA_VERSION = 1
+BENCHMARK_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -21,6 +21,30 @@ class CpuProfileSnapshot:
             "search_depth": self.search_depth,
             "action_interval_ticks": self.action_interval_ticks,
             "lookahead_discount": self.lookahead_discount,
+        }
+
+
+@dataclass(frozen=True)
+class CpuEvaluatorSnapshot:
+    evaluator_id: str
+    cleared_lines: float
+    aggregate_height: float
+    max_height: float
+    holes: float
+    covered_hole_cells: float
+    bumpiness: float
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "evaluator_id": self.evaluator_id,
+            "weights": {
+                "cleared_lines": self.cleared_lines,
+                "aggregate_height": self.aggregate_height,
+                "max_height": self.max_height,
+                "holes": self.holes,
+                "covered_hole_cells": self.covered_hole_cells,
+                "bumpiness": self.bumpiness,
+            },
         }
 
 
@@ -84,6 +108,7 @@ class CpuBenchmarkReport:
     level: str
     max_pieces: int
     profile: CpuProfileSnapshot
+    evaluator: CpuEvaluatorSnapshot
     games: tuple[CpuBenchmarkGameResult, ...]
 
     def summary_dict(self) -> dict[str, object]:
@@ -135,6 +160,7 @@ class CpuBenchmarkReport:
             "game_count": len(self.games),
             "max_pieces": self.max_pieces,
             "profile": self.profile.to_dict(),
+            "evaluator": self.evaluator.to_dict(),
             "summary": self.summary_dict(),
             "games": [game.to_dict() for game in self.games],
         }
@@ -148,12 +174,14 @@ class CpuBenchmarkComparisonReport:
     reports: tuple[CpuBenchmarkReport, ...]
 
     def to_dict(self) -> dict[str, object]:
+        evaluator = self.reports[0].evaluator.to_dict() if self.reports else None
         return {
             "benchmark_schema_version": BENCHMARK_SCHEMA_VERSION,
             "mode": "comparison",
             "seed_start": self.seed_start,
             "game_count": self.game_count,
             "max_pieces": self.max_pieces,
+            "evaluator": evaluator,
             "summary_by_level": {
                 report.level: report.summary_dict() for report in self.reports
             },
