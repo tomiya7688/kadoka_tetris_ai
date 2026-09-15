@@ -9,7 +9,12 @@ from typing import Sequence
 from tetris.adapters.jsonl_api_server import JsonlApiServer
 from tetris.adapters.pygame_app import PygameApp
 from tetris.benchmark import StandardCpuBenchmark, StandardCpuComparison
-from tetris.cpu import StandardCpuStrategy, standard_cpu_profile
+from tetris.cpu import (
+    StandardCpuStrategy,
+    ensure_standard_cpu_config,
+    load_standard_cpu_config,
+    standard_cpu_profile,
+)
 from tetris.input_config import load_keyboard_bindings
 from tetris.runtime_paths import ensure_user_data
 
@@ -82,17 +87,23 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     user_data = ensure_user_data(args.data_root)
+    config_dir = user_data / "Config"
+    ensure_standard_cpu_config(config_dir)
 
     if args.benchmark_cpu is not None:
         return _run_cpu_benchmark(args, user_data)
 
-    bindings = load_keyboard_bindings(user_data / "Config")
+    bindings = load_keyboard_bindings(config_dir)
     if args.smoke_test:
         return _run_smoke_test(args.api_port, args.player)
 
     cpu_strategy = None
     if args.cpu_level != "off":
-        cpu_strategy = StandardCpuStrategy(standard_cpu_profile(args.cpu_level))
+        cpu_config = load_standard_cpu_config(config_dir)
+        cpu_strategy = StandardCpuStrategy(
+            standard_cpu_profile(args.cpu_level),
+            weights=cpu_config.weights,
+        )
 
     return PygameApp(
         bindings=bindings,
@@ -103,12 +114,17 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 
 def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
+    cpu_config = load_standard_cpu_config(user_data / "Config")
     if args.benchmark_cpu == "all":
-        benchmark = StandardCpuComparison(max_pieces=args.benchmark_max_pieces)
+        benchmark = StandardCpuComparison(
+            max_pieces=args.benchmark_max_pieces,
+            weights=cpu_config.weights,
+        )
     else:
         benchmark = StandardCpuBenchmark(
             args.benchmark_cpu,
             max_pieces=args.benchmark_max_pieces,
+            weights=cpu_config.weights,
         )
 
     report = benchmark.run(
