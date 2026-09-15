@@ -7,7 +7,10 @@ from pathlib import Path
 
 
 REQUIRED_USER_DATA_DIRECTORIES = ("Config", "Logs")
-REQUIRED_USER_DATA_FILES = (Path("Config") / "input.json",)
+REQUIRED_USER_DATA_FILES = (
+    Path("Config") / "input.json",
+    Path("Config") / "standard_cpu.json",
+)
 
 
 def verify_distribution(distribution_dir: Path) -> None:
@@ -66,6 +69,9 @@ def _verify_frozen_benchmark(
     payload = json.loads(benchmark_output.read_text(encoding="utf-8"))
     if payload.get("level") != "easy":
         raise RuntimeError("frozen benchmark reported the wrong CPU level")
+    evaluator = payload.get("evaluator", {})
+    if evaluator.get("evaluator_id") != "visible-board-v1":
+        raise RuntimeError("frozen benchmark did not record evaluator metadata")
     games = payload.get("games", [])
     if len(games) != 1 or games[0].get("placements") != 1:
         raise RuntimeError("frozen benchmark did not place exactly one piece")
