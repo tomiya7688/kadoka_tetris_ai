@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Sequence
 
@@ -114,7 +115,8 @@ def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(report.to_dict(), ensure_ascii=False, indent=2)
     output_path.write_text(payload + "\n", encoding="utf-8")
-    print(payload)
+    if sys.stdout is not None:
+        print(payload)
     return 0
 
 
