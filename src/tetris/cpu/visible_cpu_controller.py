@@ -23,6 +23,8 @@ class VisibleCpuController:
         strategy: VisibleCpuStrategy,
         observer: VisiblePlayerObserver | None = None,
     ):
+        if not isinstance(player, int) or isinstance(player, bool) or player < 0:
+            raise ValueError("player must be a nonnegative integer")
         self.player = player
         self.strategy = strategy
         self.observer = observer or VisiblePlayerObserver()
