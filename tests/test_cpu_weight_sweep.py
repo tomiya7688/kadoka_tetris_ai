@@ -24,10 +24,10 @@ class CpuWeightSweepTests(unittest.TestCase):
         )
 
         by_label = {candidate.label: candidate for candidate in report.candidates}
-        self.assertEqual(by_label["holes:lower"].baseline_value, -7.0)
-        self.assertEqual(by_label["holes:lower"].candidate_value, -5.25)
-        self.assertEqual(by_label["holes:higher"].candidate_value, -8.75)
-        self.assertEqual(by_label["holes:higher"].multiplier, 1.25)
+        self.assertEqual(by_label["holes:0.75x"].baseline_value, -7.0)
+        self.assertEqual(by_label["holes:0.75x"].candidate_value, -5.25)
+        self.assertEqual(by_label["holes:1.25x"].candidate_value, -8.75)
+        self.assertEqual(by_label["holes:1.25x"].multiplier, 1.25)
 
     def test_zero_weight_uses_absolute_step_candidates(self):
         report = StandardCpuWeightSweep(
@@ -38,9 +38,9 @@ class CpuWeightSweepTests(unittest.TestCase):
         ).run(game_count=1, seed=81)
         by_label = {candidate.label: candidate for candidate in report.candidates}
 
-        self.assertEqual(by_label["holes:lower"].candidate_value, -0.2)
-        self.assertEqual(by_label["holes:higher"].candidate_value, 0.2)
-        self.assertIsNone(by_label["holes:lower"].multiplier)
+        self.assertEqual(by_label["holes:-step"].candidate_value, -0.2)
+        self.assertEqual(by_label["holes:+step"].candidate_value, 0.2)
+        self.assertIsNone(by_label["holes:-step"].multiplier)
 
     def test_sweep_report_contains_quick_summaries_and_full_reports(self):
         payload = StandardCpuWeightSweep(
