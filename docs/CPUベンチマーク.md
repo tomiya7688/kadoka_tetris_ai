@@ -39,18 +39,23 @@ KadokaTetrisAI.exe --benchmark-cpu all --benchmark-games 10 --benchmark-max-piec
 `--benchmark-seed N` を指定すると最初のゲームがseed N、2ゲーム目がN+1、以降も1ずつ増加する。
 CPU比較では同じseed範囲を使用する。
 
+標準CPUの評価重みは `UserData/Config/standard_cpu.json` から読み込む。
+重みを変更して比較する場合もseed範囲を固定する。
+
 ## 結果の識別情報
 
-JSONには `benchmark_schema_version` とCPUプロファイル情報を含める。
+JSONには `benchmark_schema_version`、CPUプロファイル情報、評価器情報を含める。
 
 - CPU実装ID
 - CPUレベル名
 - 探索深度
 - 入力間隔tick
 - lookahead係数
+- 評価器ID
+- 実際に使用した6つの評価重み
 
-現在の標準CPU実装IDは `standard-visible-v1`。
-アルゴリズム互換性を壊す変更を行う場合は実装IDを更新し、古いベンチマーク結果と区別できるようにする。
+現在の標準CPU実装IDは `standard-visible-v1`、評価器IDは `visible-board-v1`。
+アルゴリズム互換性を壊す変更を行う場合は実装IDまたは評価器IDを更新し、古いベンチマーク結果と区別できるようにする。
 
 ## 主要な出力
 
@@ -106,7 +111,7 @@ TickEngine
 
 - CSV出力
 - 並列実行
-- 評価重みの詳細記録
+- 評価重みの自動・半自動探索
 - 対戦ベンチマーク
 - Block Slime / Kadokaモデルとの共通ベンチマーク
 - CIでの性能退行検出
