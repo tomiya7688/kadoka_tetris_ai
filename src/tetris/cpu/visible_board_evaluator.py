@@ -5,6 +5,9 @@ from dataclasses import dataclass
 from tetris.observation import Cell
 
 
+VISIBLE_BOARD_EVALUATOR_ID = "visible-board-v1"
+
+
 @dataclass(frozen=True)
 class VisibleBoardWeights:
     cleared_lines: float = 3.0
