@@ -82,21 +82,21 @@ class StandardCpuWeightSweep:
         for field in fields(VisibleBoardWeights):
             name = field.name
             baseline = float(getattr(self.base_weights, name))
-            for direction, multiplier in (
-                ("lower", 1.0 - self.step_fraction),
-                ("higher", 1.0 + self.step_fraction),
+            for sign, multiplier in (
+                (-1.0, 1.0 - self.step_fraction),
+                (1.0, 1.0 + self.step_fraction),
             ):
                 if baseline == 0.0:
-                    candidate_value = (
-                        -self.step_fraction if direction == "lower" else self.step_fraction
-                    )
+                    candidate_value = sign * self.step_fraction
                     effective_multiplier = None
+                    label = f"{name}:{'-step' if sign < 0 else '+step'}"
                 else:
                     candidate_value = baseline * multiplier
                     effective_multiplier = multiplier
+                    label = f"{name}:{multiplier:g}x"
                 candidates.append(
                     _WeightCandidate(
-                        label=f"{name}:{direction}",
+                        label=label,
                         changed_weight=name,
                         baseline_value=baseline,
                         candidate_value=candidate_value,
