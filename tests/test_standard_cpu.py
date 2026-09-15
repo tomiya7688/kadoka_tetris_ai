@@ -29,6 +29,11 @@ class FixedPlanner:
         )
 
 
+class ClearOnlyEvaluator:
+    def score(self, cells, width, height, cleared_lines=0):
+        return cleared_lines * 1000.0 - len(cells) * 0.01
+
+
 class StandardCpuTests(unittest.TestCase):
     def test_profiles_change_search_strength_and_speed(self):
         easy = STANDARD_CPU_PROFILES["easy"]
@@ -68,8 +73,38 @@ class StandardCpuTests(unittest.TestCase):
         self.assertEqual(move.actions[-1], "hard_drop")
         self.assertTrue(
             set(move.actions)
-            <= {"move_left", "move_right", "rotate_cw", "rotate_ccw", "hard_drop"}
+            <= {
+                "move_left",
+                "move_right",
+                "rotate_cw",
+                "rotate_ccw",
+                "hold",
+                "hard_drop",
+            }
         )
+
+    def test_planner_can_choose_existing_hold_piece(self):
+        observation = self._hold_test_observation(hold_piece=PieceType.I, next_pieces=())
+        move = VisiblePlacementPlanner(
+            evaluator=ClearOnlyEvaluator(),
+            search_depth=1,
+        ).choose(observation)
+
+        self.assertTrue(move.used_hold)
+        self.assertEqual(move.actions[0], "hold")
+
+    def test_empty_hold_uses_only_visible_next_piece(self):
+        observation = self._hold_test_observation(
+            hold_piece=None,
+            next_pieces=(PieceType.I,),
+        )
+        move = VisiblePlacementPlanner(
+            evaluator=ClearOnlyEvaluator(),
+            search_depth=1,
+        ).choose(observation)
+
+        self.assertTrue(move.used_hold)
+        self.assertEqual(move.actions[0], "hold")
 
     def test_strategy_uses_action_interval_without_replanning(self):
         profile = StandardCpuProfile(
@@ -110,6 +145,19 @@ class StandardCpuTests(unittest.TestCase):
                 break
 
         self.assertTrue(locked_cells)
+
+    def _hold_test_observation(self, hold_piece, next_pieces):
+        return PlayerObservation(
+            board=BoardObservation(
+                width=4,
+                height=4,
+                locked_cells=frozenset({(0, 3), (1, 3), (2, 3)}),
+                active_cells=frozenset(),
+            ),
+            current_piece=PieceType.O,
+            hold_piece=hold_piece,
+            next_pieces=next_pieces,
+        )
 
 
 if __name__ == "__main__":
