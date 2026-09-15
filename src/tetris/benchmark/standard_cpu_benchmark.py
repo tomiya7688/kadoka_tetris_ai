@@ -6,14 +6,21 @@ from tetris.application import InputRouter, TickEngine
 from tetris.core import GameState
 from tetris.cpu import (
     STANDARD_CPU_IMPLEMENTATION_ID,
+    VISIBLE_BOARD_EVALUATOR_ID,
     StandardCpuStrategy,
+    VisibleBoardWeights,
     VisibleCpuController,
     standard_cpu_profile,
 )
 from tetris.observation import VisiblePlayerObserver
 
 from .board_metrics import VisibleBoardMetrics
-from .result import CpuBenchmarkGameResult, CpuBenchmarkReport, CpuProfileSnapshot
+from .result import (
+    CpuBenchmarkGameResult,
+    CpuBenchmarkReport,
+    CpuEvaluatorSnapshot,
+    CpuProfileSnapshot,
+)
 
 
 class StandardCpuBenchmark:
@@ -24,6 +31,7 @@ class StandardCpuBenchmark:
         level: str,
         max_pieces: int = 100,
         max_ticks_per_piece: int = 120,
+        weights: VisibleBoardWeights | None = None,
     ):
         if not isinstance(max_pieces, int) or isinstance(max_pieces, bool) or max_pieces < 1:
             raise ValueError("max_pieces must be a positive integer")
@@ -38,6 +46,7 @@ class StandardCpuBenchmark:
         self.level = level
         self.max_pieces = max_pieces
         self.max_ticks_per_piece = max_ticks_per_piece
+        self.weights = weights or VisibleBoardWeights()
         self.observer = VisiblePlayerObserver()
 
     def run(self, game_count: int = 1, seed: int = 0) -> CpuBenchmarkReport:
@@ -57,6 +66,15 @@ class StandardCpuBenchmark:
                 action_interval_ticks=self.profile.action_interval_ticks,
                 lookahead_discount=self.profile.lookahead_discount,
             ),
+            evaluator=CpuEvaluatorSnapshot(
+                evaluator_id=VISIBLE_BOARD_EVALUATOR_ID,
+                cleared_lines=self.weights.cleared_lines,
+                aggregate_height=self.weights.aggregate_height,
+                max_height=self.weights.max_height,
+                holes=self.weights.holes,
+                covered_hole_cells=self.weights.covered_hole_cells,
+                bumpiness=self.weights.bumpiness,
+            ),
             games=games,
         )
 
@@ -64,7 +82,7 @@ class StandardCpuBenchmark:
         game = GameState(seed=seed)
         engine = TickEngine({0: game})
         router = InputRouter(engine)
-        strategy = StandardCpuStrategy(self.profile)
+        strategy = StandardCpuStrategy(self.profile, weights=self.weights)
         controller = VisibleCpuController(0, strategy, observer=self.observer)
 
         placements = 0
