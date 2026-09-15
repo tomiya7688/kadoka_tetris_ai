@@ -99,15 +99,17 @@ class StandardCpuTests(unittest.TestCase):
         strategy = StandardCpuStrategy(STANDARD_CPU_PROFILES["easy"])
         controller = VisibleCpuController(0, strategy)
 
+        locked_cells = []
         for _ in range(80):
             action = controller.choose_action(game)
             if action is not None:
                 router.submit(action)
             engine.advance()
-            if game.board.cells():
+            locked_cells = list(game.board.cells())
+            if locked_cells:
                 break
 
-        self.assertTrue(list(game.board.cells()))
+        self.assertTrue(locked_cells)
 
 
 if __name__ == "__main__":
