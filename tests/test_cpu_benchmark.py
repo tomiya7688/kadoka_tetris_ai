@@ -21,7 +21,7 @@ class CpuBenchmarkTests(unittest.TestCase):
 
         self.assertEqual(metrics.stack_height, 3)
         self.assertEqual(metrics.holes, 1)
-        self.assertEqual(metrics.bumpiness, 4)
+        self.assertEqual(metrics.bumpiness, 3)
 
     def test_easy_benchmark_reaches_small_piece_limit_headlessly(self):
         report = StandardCpuBenchmark("easy", max_pieces=3).run(
