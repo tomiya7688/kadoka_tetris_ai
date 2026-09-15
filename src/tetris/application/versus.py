@@ -1,3 +1,4 @@
+import random
 from dataclasses import dataclass
 
 from .attack import attack_for_event, cancel_attack
@@ -10,6 +11,7 @@ class PlayerResult:
     incoming_garbage: int = 0
     outgoing_attack: int = 0
     cancelled_garbage: int = 0
+    garbage_received: int = 0
     lines_cleared: int = 0
     t_spins: int = 0
     perfect_clears: int = 0
@@ -18,9 +20,11 @@ class PlayerResult:
 
 
 class VersusSession:
-    def __init__(self, games):
+    def __init__(self, games, garbage_seed: int = 0):
         if len(games) != 2:
             raise ValueError("versus requires exactly two players")
+        if not isinstance(garbage_seed, int) or isinstance(garbage_seed, bool):
+            raise ValueError("garbage_seed must be an integer")
         self.games = games
         self.results = {player: PlayerResult() for player in games}
         self.engine = TickEngine(games)
@@ -28,17 +32,20 @@ class VersusSession:
             player: game.pieces_locked
             for player, game in games.items()
         }
+        self._garbage_rng = random.Random(garbage_seed)
 
     def submit(self, command: Command):
         self.engine.submit(command)
 
     def advance(self):
         self.engine.advance()
+        locked_players = set()
         for player, game in self.games.items():
             event = game.last_lock_event
             if event is None or event.lock_id <= self._seen_lock_ids[player]:
                 continue
             self._seen_lock_ids[player] = event.lock_id
+            locked_players.add(player)
             result = self.results[player]
             result.lines_cleared += event.lines
             result.t_spins += int(event.t_spin)
@@ -59,6 +66,9 @@ class VersusSession:
             self.results[player_a].cancelled_garbage += cancelled
             self.results[player_b].cancelled_garbage += cancelled
 
+        for player in locked_players:
+            self._apply_pending_garbage(player)
+
         for player in (player_a, player_b):
             self.results[player].defeated = self.games[player].game_over
 
@@ -73,3 +83,13 @@ class VersusSession:
         opponent = next(candidate for candidate in self.results if candidate != player)
         self.results[player].outgoing_attack += amount
         self.results[opponent].incoming_garbage += amount
+
+    def _apply_pending_garbage(self, player) -> None:
+        amount = self.results[player].incoming_garbage
+        if amount <= 0:
+            return
+        width = self.games[player].board.width
+        holes = tuple(self._garbage_rng.randrange(width) for _ in range(amount))
+        self.games[player].add_garbage(holes)
+        self.results[player].incoming_garbage = 0
+        self.results[player].garbage_received += amount
