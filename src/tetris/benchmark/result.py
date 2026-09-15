@@ -195,16 +195,19 @@ class CpuBenchmarkComparisonReport:
 class CpuWeightSweepCandidateResult:
     label: str
     changed_weight: str | None
-    multiplier: float
+    baseline_value: float | None
+    candidate_value: float | None
+    multiplier: float | None
     report: CpuBenchmarkReport
 
     def to_dict(self) -> dict[str, object]:
         return {
             "label": self.label,
             "changed_weight": self.changed_weight,
+            "baseline_value": self.baseline_value,
+            "candidate_value": self.candidate_value,
             "multiplier": self.multiplier,
-            "evaluator": self.report.evaluator.to_dict(),
-            "summary": self.report.summary_dict(),
+            "report": self.report.to_dict(),
         }
 
 
@@ -227,5 +230,9 @@ class CpuWeightSweepReport:
             "max_pieces": self.max_pieces,
             "step_fraction": self.step_fraction,
             "candidate_count": len(self.candidates),
+            "summary_by_candidate": {
+                candidate.label: candidate.report.summary_dict()
+                for candidate in self.candidates
+            },
             "candidates": [candidate.to_dict() for candidate in self.candidates],
         }
