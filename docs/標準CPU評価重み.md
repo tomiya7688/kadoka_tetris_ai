@@ -84,10 +84,11 @@ python -m tetris.main --benchmark-weight-sweep normal --benchmark-games 10 --ben
 既定の `--benchmark-weight-step 0.25` では以下の13候補を作る。
 
 - baseline
-- 6重みそれぞれの `lower`
-- 6重みそれぞれの `higher`
+- 6重みそれぞれの `0.75x`
+- 6重みそれぞれの `1.25x`
 
-基準値が0以外なら `0.75x` / `1.25x`、基準値が0なら `-0.25` / `+0.25` を候補にする。
+例えば `holes:0.75x` と `holes:1.25x` のような候補名になる。
+基準値が0の場合だけ倍率では動かせないため、`-step` / `+step` の絶対値候補を作る。
 stepは例えば10%なら次のように指定する。
 
 ```text
