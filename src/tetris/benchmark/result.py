@@ -189,3 +189,50 @@ class CpuBenchmarkComparisonReport:
                 report.level: report.to_dict() for report in self.reports
             },
         }
+
+
+@dataclass(frozen=True)
+class CpuWeightSweepCandidateResult:
+    label: str
+    changed_weight: str | None
+    baseline_value: float | None
+    candidate_value: float | None
+    multiplier: float | None
+    report: CpuBenchmarkReport
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "label": self.label,
+            "changed_weight": self.changed_weight,
+            "baseline_value": self.baseline_value,
+            "candidate_value": self.candidate_value,
+            "multiplier": self.multiplier,
+            "report": self.report.to_dict(),
+        }
+
+
+@dataclass(frozen=True)
+class CpuWeightSweepReport:
+    level: str
+    seed_start: int
+    game_count: int
+    max_pieces: int
+    step_fraction: float
+    candidates: tuple[CpuWeightSweepCandidateResult, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "benchmark_schema_version": BENCHMARK_SCHEMA_VERSION,
+            "mode": "weight-sweep",
+            "level": self.level,
+            "seed_start": self.seed_start,
+            "game_count": self.game_count,
+            "max_pieces": self.max_pieces,
+            "step_fraction": self.step_fraction,
+            "candidate_count": len(self.candidates),
+            "summary_by_candidate": {
+                candidate.label: candidate.report.summary_dict()
+                for candidate in self.candidates
+            },
+            "candidates": [candidate.to_dict() for candidate in self.candidates],
+        }

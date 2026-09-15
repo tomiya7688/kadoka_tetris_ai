@@ -8,7 +8,11 @@ from typing import Sequence
 
 from tetris.adapters.jsonl_api_server import JsonlApiServer
 from tetris.adapters.pygame_app import PygameApp
-from tetris.benchmark import StandardCpuBenchmark, StandardCpuComparison
+from tetris.benchmark import (
+    StandardCpuBenchmark,
+    StandardCpuComparison,
+    StandardCpuWeightSweep,
+)
 from tetris.cpu import (
     StandardCpuStrategy,
     ensure_standard_cpu_config,
@@ -45,11 +49,24 @@ def build_parser() -> argparse.ArgumentParser:
         default="off",
         help="enable the built-in visible-only standard CPU",
     )
-    parser.add_argument(
+    benchmark_mode = parser.add_mutually_exclusive_group()
+    benchmark_mode.add_argument(
         "--benchmark-cpu",
         choices=("easy", "normal", "hard", "all"),
         default=None,
         help="run one standard CPU level, or compare all levels headlessly",
+    )
+    benchmark_mode.add_argument(
+        "--benchmark-weight-sweep",
+        choices=("easy", "normal", "hard"),
+        default=None,
+        help="sweep each evaluator weight around the configured baseline",
+    )
+    parser.add_argument(
+        "--benchmark-weight-step",
+        type=float,
+        default=0.25,
+        help="fractional +/- step for weight sweep candidates (default: 0.25)",
     )
     parser.add_argument(
         "--benchmark-games",
@@ -73,7 +90,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--benchmark-output",
         type=Path,
         default=None,
-        help="benchmark JSON output path (default: UserData/Logs/cpu-benchmark.json)",
+        help="benchmark JSON output path",
     )
     parser.add_argument(
         "--data-root",
@@ -90,7 +107,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     config_dir = user_data / "Config"
     ensure_standard_cpu_config(config_dir)
 
-    if args.benchmark_cpu is not None:
+    if args.benchmark_cpu is not None or args.benchmark_weight_sweep is not None:
         return _run_cpu_benchmark(args, user_data)
 
     bindings = load_keyboard_bindings(config_dir)
@@ -115,7 +132,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
     cpu_config = load_standard_cpu_config(user_data / "Config")
-    if args.benchmark_cpu == "all":
+    default_filename = "cpu-benchmark.json"
+    if args.benchmark_weight_sweep is not None:
+        benchmark = StandardCpuWeightSweep(
+            args.benchmark_weight_sweep,
+            max_pieces=args.benchmark_max_pieces,
+            base_weights=cpu_config.weights,
+            step_fraction=args.benchmark_weight_step,
+        )
+        default_filename = "cpu-weight-sweep.json"
+    elif args.benchmark_cpu == "all":
         benchmark = StandardCpuComparison(
             max_pieces=args.benchmark_max_pieces,
             weights=cpu_config.weights,
@@ -131,7 +157,7 @@ def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
         game_count=args.benchmark_games,
         seed=args.benchmark_seed,
     )
-    output_path = args.benchmark_output or user_data / "Logs" / "cpu-benchmark.json"
+    output_path = args.benchmark_output or user_data / "Logs" / default_filename
     output_path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(report.to_dict(), ensure_ascii=False, indent=2)
     output_path.write_text(payload + "\n", encoding="utf-8")

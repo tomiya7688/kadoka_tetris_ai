@@ -6,9 +6,12 @@ from .result import (
     CpuBenchmarkReport,
     CpuEvaluatorSnapshot,
     CpuProfileSnapshot,
+    CpuWeightSweepCandidateResult,
+    CpuWeightSweepReport,
 )
 from .standard_cpu_benchmark import StandardCpuBenchmark
 from .standard_cpu_comparison import (
     STANDARD_CPU_COMPARISON_LEVELS,
     StandardCpuComparison,
 )
+from .standard_cpu_weight_sweep import StandardCpuWeightSweep
