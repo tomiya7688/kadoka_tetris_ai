@@ -15,6 +15,7 @@ class VisiblePlannedMove:
     x: int
     score: float
     actions: tuple[str, ...]
+    used_hold: bool = False
 
 
 @dataclass(frozen=True)
@@ -25,8 +26,15 @@ class _PlacementResult:
     x: int
 
 
+@dataclass(frozen=True)
+class _RootOption:
+    piece: PieceType
+    future_pieces: tuple[PieceType, ...]
+    used_hold: bool
+
+
 class VisiblePlacementPlanner:
-    """Search current and visible NEXT pieces without accessing the bag or RNG."""
+    """Search current/HOLD and visible NEXT pieces without bag or RNG access."""
 
     def __init__(
         self,
@@ -47,50 +55,87 @@ class VisiblePlacementPlanner:
             raise ValueError("current piece is not visible")
 
         board = observation.board
-        pieces = (observation.current_piece,) + observation.next_pieces
-        depth = min(self.search_depth, len(pieces))
         memo: dict[tuple[frozenset[Cell], tuple[PieceType, ...], int], float] = {}
         best_move = None
 
-        for placement in self._placements(
-            board.locked_cells,
-            pieces[0],
-            board.width,
-            board.height,
-        ):
-            score = self.evaluator.score(
-                placement.cells,
+        for option in self._root_options(observation):
+            depth = min(self.search_depth, 1 + len(option.future_pieces))
+            for placement in self._placements(
+                board.locked_cells,
+                option.piece,
                 board.width,
                 board.height,
-                placement.cleared_lines,
-            )
-            if depth > 1:
-                future_score = self._best_future_score(
+            ):
+                score = self.evaluator.score(
                     placement.cells,
-                    pieces[1:],
-                    depth - 1,
                     board.width,
                     board.height,
-                    memo,
+                    placement.cleared_lines,
                 )
-                score += self.lookahead_discount * future_score
+                if depth > 1:
+                    future_score = self._best_future_score(
+                        placement.cells,
+                        option.future_pieces,
+                        depth - 1,
+                        board.width,
+                        board.height,
+                        memo,
+                    )
+                    score += self.lookahead_discount * future_score
 
-            move = VisiblePlannedMove(
-                rotation=placement.rotation,
-                x=placement.x,
-                score=score,
-                actions=self._actions_for(
+                actions = self._actions_for(
                     placement.rotation,
                     placement.x,
                     board.width,
-                ),
-            )
-            if best_move is None or move.score > best_move.score:
-                best_move = move
+                )
+                if option.used_hold:
+                    actions = ("hold",) + actions
+
+                move = VisiblePlannedMove(
+                    rotation=placement.rotation,
+                    x=placement.x,
+                    score=score,
+                    actions=actions,
+                    used_hold=option.used_hold,
+                )
+                if best_move is None or move.score > best_move.score:
+                    best_move = move
 
         if best_move is None:
             raise ValueError("no legal visible placement")
         return best_move
+
+    def _root_options(self, observation: PlayerObservation) -> tuple[_RootOption, ...]:
+        current_piece = observation.current_piece
+        if current_piece is None:
+            return ()
+
+        options = [
+            _RootOption(
+                piece=current_piece,
+                future_pieces=observation.next_pieces,
+                used_hold=False,
+            )
+        ]
+
+        if observation.hold_piece is not None:
+            options.append(
+                _RootOption(
+                    piece=observation.hold_piece,
+                    future_pieces=observation.next_pieces,
+                    used_hold=True,
+                )
+            )
+        elif observation.next_pieces:
+            options.append(
+                _RootOption(
+                    piece=observation.next_pieces[0],
+                    future_pieces=observation.next_pieces[1:],
+                    used_hold=True,
+                )
+            )
+
+        return tuple(options)
 
     def _best_future_score(
         self,
