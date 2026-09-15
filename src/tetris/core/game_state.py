@@ -144,6 +144,19 @@ class GameState:
         self.spawn()
         return self.last_lock_event
 
+    def add_garbage(self, hole_columns) -> bool:
+        """Apply garbage rows and update top-out state.
+
+        Garbage is applied between placements by the versus coordinator.  The active
+        piece is not moved with the stack; if the risen stack overlaps its spawn
+        position the game is over.
+        """
+        overflow = self.board.add_garbage(hole_columns)
+        self._last_rotation_successful = False
+        if overflow or self.active is None or not self._can(self.active):
+            self.game_over = True
+        return overflow
+
     def hold_piece(self):
         if self.hold_used:
             return False
