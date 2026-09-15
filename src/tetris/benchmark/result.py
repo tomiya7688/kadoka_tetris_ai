@@ -3,6 +3,27 @@
 from dataclasses import dataclass
 
 
+BENCHMARK_SCHEMA_VERSION = 1
+
+
+@dataclass(frozen=True)
+class CpuProfileSnapshot:
+    implementation_id: str
+    name: str
+    search_depth: int
+    action_interval_ticks: int
+    lookahead_discount: float
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "implementation_id": self.implementation_id,
+            "name": self.name,
+            "search_depth": self.search_depth,
+            "action_interval_ticks": self.action_interval_ticks,
+            "lookahead_discount": self.lookahead_discount,
+        }
+
+
 @dataclass(frozen=True)
 class CpuBenchmarkGameResult:
     level: str
@@ -62,9 +83,10 @@ class CpuBenchmarkGameResult:
 class CpuBenchmarkReport:
     level: str
     max_pieces: int
+    profile: CpuProfileSnapshot
     games: tuple[CpuBenchmarkGameResult, ...]
 
-    def to_dict(self) -> dict[str, object]:
+    def summary_dict(self) -> dict[str, object]:
         count = len(self.games)
         total_placements = sum(game.placements for game in self.games)
         total_lines = sum(game.lines for game in self.games)
@@ -73,40 +95,69 @@ class CpuBenchmarkReport:
         total_game_overs = sum(1 for game in self.games if game.game_over)
 
         return {
+            "total_placements": total_placements,
+            "total_lines": total_lines,
+            "game_overs": total_game_overs,
+            "average_placements": round(total_placements / max(1, count), 4),
+            "average_lines": round(total_lines / max(1, count), 4),
+            "lines_per_placement": round(
+                total_lines / max(1, total_placements),
+                4,
+            ),
+            "average_ticks_per_placement": round(
+                total_ticks / max(1, total_placements),
+                4,
+            ),
+            "decision_ms_per_placement": round(
+                total_decision_seconds * 1000.0 / max(1, total_placements),
+                4,
+            ),
+            "average_peak_stack_height": round(
+                sum(game.peak_stack_height for game in self.games)
+                / max(1, count),
+                4,
+            ),
+            "average_peak_holes": round(
+                sum(game.peak_holes for game in self.games) / max(1, count),
+                4,
+            ),
+            "average_peak_bumpiness": round(
+                sum(game.peak_bumpiness for game in self.games) / max(1, count),
+                4,
+            ),
+        }
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "benchmark_schema_version": BENCHMARK_SCHEMA_VERSION,
+            "mode": "single-level",
             "level": self.level,
-            "game_count": count,
+            "game_count": len(self.games),
             "max_pieces": self.max_pieces,
-            "summary": {
-                "total_placements": total_placements,
-                "total_lines": total_lines,
-                "game_overs": total_game_overs,
-                "average_placements": round(total_placements / max(1, count), 4),
-                "average_lines": round(total_lines / max(1, count), 4),
-                "lines_per_placement": round(
-                    total_lines / max(1, total_placements),
-                    4,
-                ),
-                "average_ticks_per_placement": round(
-                    total_ticks / max(1, total_placements),
-                    4,
-                ),
-                "decision_ms_per_placement": round(
-                    total_decision_seconds * 1000.0 / max(1, total_placements),
-                    4,
-                ),
-                "average_peak_stack_height": round(
-                    sum(game.peak_stack_height for game in self.games)
-                    / max(1, count),
-                    4,
-                ),
-                "average_peak_holes": round(
-                    sum(game.peak_holes for game in self.games) / max(1, count),
-                    4,
-                ),
-                "average_peak_bumpiness": round(
-                    sum(game.peak_bumpiness for game in self.games) / max(1, count),
-                    4,
-                ),
-            },
+            "profile": self.profile.to_dict(),
+            "summary": self.summary_dict(),
             "games": [game.to_dict() for game in self.games],
+        }
+
+
+@dataclass(frozen=True)
+class CpuBenchmarkComparisonReport:
+    seed_start: int
+    game_count: int
+    max_pieces: int
+    reports: tuple[CpuBenchmarkReport, ...]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "benchmark_schema_version": BENCHMARK_SCHEMA_VERSION,
+            "mode": "comparison",
+            "seed_start": self.seed_start,
+            "game_count": self.game_count,
+            "max_pieces": self.max_pieces,
+            "summary_by_level": {
+                report.level: report.summary_dict() for report in self.reports
+            },
+            "levels": {
+                report.level: report.to_dict() for report in self.reports
+            },
         }
