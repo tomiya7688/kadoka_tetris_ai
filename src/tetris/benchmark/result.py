@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-BENCHMARK_SCHEMA_VERSION = 2
+BENCHMARK_SCHEMA_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -54,6 +54,11 @@ class CpuBenchmarkGameResult:
     seed: int
     placements: int
     lines: int
+    attack_generated: int
+    t_spins: int
+    perfect_clears: int
+    back_to_back_clears: int
+    max_combo: int
     ticks: int
     game_over: bool
     reached_piece_limit: bool
@@ -77,6 +82,19 @@ class CpuBenchmarkGameResult:
             "placements": self.placements,
             "lines": self.lines,
             "lines_per_placement": round(self.lines / max(1, self.placements), 4),
+            "attack_generated": self.attack_generated,
+            "attack_per_placement": round(
+                self.attack_generated / max(1, self.placements),
+                4,
+            ),
+            "attack_per_line": round(
+                self.attack_generated / max(1, self.lines),
+                4,
+            ),
+            "t_spins": self.t_spins,
+            "perfect_clears": self.perfect_clears,
+            "back_to_back_clears": self.back_to_back_clears,
+            "max_combo": self.max_combo,
             "ticks": self.ticks,
             "game_over": self.game_over,
             "reached_piece_limit": self.reached_piece_limit,
@@ -115,6 +133,7 @@ class CpuBenchmarkReport:
         count = len(self.games)
         total_placements = sum(game.placements for game in self.games)
         total_lines = sum(game.lines for game in self.games)
+        total_attack = sum(game.attack_generated for game in self.games)
         total_ticks = sum(game.ticks for game in self.games)
         total_decision_seconds = sum(game.decision_seconds for game in self.games)
         total_game_overs = sum(1 for game in self.games if game.game_over)
@@ -122,11 +141,26 @@ class CpuBenchmarkReport:
         return {
             "total_placements": total_placements,
             "total_lines": total_lines,
+            "total_attack_generated": total_attack,
+            "total_t_spins": sum(game.t_spins for game in self.games),
+            "total_perfect_clears": sum(game.perfect_clears for game in self.games),
+            "total_back_to_back_clears": sum(
+                game.back_to_back_clears for game in self.games
+            ),
+            "max_combo": max((game.max_combo for game in self.games), default=0),
             "game_overs": total_game_overs,
             "average_placements": round(total_placements / max(1, count), 4),
             "average_lines": round(total_lines / max(1, count), 4),
             "lines_per_placement": round(
                 total_lines / max(1, total_placements),
+                4,
+            ),
+            "attack_per_placement": round(
+                total_attack / max(1, total_placements),
+                4,
+            ),
+            "attack_per_line": round(
+                total_attack / max(1, total_lines),
                 4,
             ),
             "average_ticks_per_placement": round(
