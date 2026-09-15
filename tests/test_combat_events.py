@@ -42,7 +42,7 @@ class CombatEventTests(unittest.TestCase):
     def test_horizontal_move_after_rotation_invalidates_t_spin(self):
         game = GameState(seed=2, width=6, visible_height=6, hidden_rows=0)
         game.active = ActivePiece(PieceType.T, x=1, y=1, rotation=3)
-        for x, y in ((1, 1), (3, 1), (1, 3)):
+        for x, y in ((1, 1), (1, 3), (3, 3)):
             _lock_single_cell(game, x, y)
 
         self.assertTrue(game.rotate(1))
