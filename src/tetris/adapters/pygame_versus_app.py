@@ -2,7 +2,7 @@
 
 from tetris.application import InputAction, InputRouter, VersusSession
 from tetris.core import GameState
-from tetris.cpu import VisibleCpuController, VisibleCpuStrategy
+from tetris.cpu import VisibleVersusCpuController, VisibleVersusCpuStrategy
 
 from .keyboard_bindings import KeyboardBindings
 from .pygame_versus_view import PygameVersusView
@@ -18,7 +18,7 @@ class PygameVersusApp:
         garbage_seed: int = 0,
         fps: int = 60,
         bindings: KeyboardBindings | None = None,
-        cpu_strategy: VisibleCpuStrategy | None = None,
+        cpu_strategy: VisibleVersusCpuStrategy | None = None,
     ):
         if not isinstance(fps, int) or isinstance(fps, bool) or fps <= 0:
             raise ValueError("fps must be a positive integer")
@@ -59,7 +59,7 @@ class PygameVersusApp:
                     router,
                     cpu_player=cpu_controller.player if cpu_controller is not None else None,
                 )
-                self._submit_cpu_action(cpu_controller, games[1], router)
+                self._submit_cpu_action(cpu_controller, session, router)
                 session.advance()
                 view.draw_states(
                     games,
@@ -73,10 +73,10 @@ class PygameVersusApp:
             view.close()
         return 0
 
-    def _create_cpu_controller(self) -> VisibleCpuController | None:
+    def _create_cpu_controller(self) -> VisibleVersusCpuController | None:
         if self.cpu_strategy is None:
             return None
-        return VisibleCpuController(1, self.cpu_strategy)
+        return VisibleVersusCpuController(1, self.cpu_strategy)
 
     def _submit_keyboard_events(
         self,
@@ -103,12 +103,12 @@ class PygameVersusApp:
 
     def _submit_cpu_action(
         self,
-        cpu_controller: VisibleCpuController | None,
-        game: GameState,
+        cpu_controller: VisibleVersusCpuController | None,
+        session: VersusSession,
         router: InputRouter,
     ) -> None:
-        if cpu_controller is None or game.game_over:
+        if cpu_controller is None or session.games[cpu_controller.player].game_over:
             return
-        input_action = cpu_controller.choose_action(game)
+        input_action = cpu_controller.choose_action(session)
         if input_action is not None:
             router.submit(input_action)
