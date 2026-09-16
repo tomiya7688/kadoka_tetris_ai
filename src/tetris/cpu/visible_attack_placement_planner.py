@@ -14,15 +14,21 @@ from .visible_placement_planner import (
 )
 
 
-VISIBLE_ATTACK_PLANNER_ID = "visible-attack-v1"
+VISIBLE_ATTACK_PLANNER_ID = "visible-attack-v2"
 
 
 class VisibleAttackPlacementPlanner(VisiblePlacementPlanner):
-    """Reward attack that can be inferred from visible state and a reachable path.
+    """Reward attack that can be inferred from visible state and reachable paths.
 
     The estimate deliberately excludes combo and back-to-back bonuses because those
     counters are not part of the current player-visible observation. It can safely use
     line count, perfect clear, and the runtime's current three-corner T-Spin rule.
+
+    Current-piece placements always use reachable semantic-action search. Future
+    non-T pieces keep the cheaper geometric drop approximation, while visible future
+    T pieces use reachable search too. This lets Normal/Hard lookahead value a T-Spin
+    that becomes available after one or more setup placements without reading hidden
+    bag state.
     """
 
     def __init__(
@@ -238,13 +244,33 @@ class VisibleAttackPlacementPlanner(VisiblePlacementPlanner):
         if cached is not None:
             return cached
 
-        best = None
-        for placement in self._drop_placements(cells, pieces[0], width, height):
-            perfect_clear = placement.cleared_lines > 0 and not placement.cells
-            attack = attack_for_clear(
-                placement.cleared_lines,
-                perfect_clear=perfect_clear,
+        piece = pieces[0]
+        if piece == PieceType.T:
+            placements = self._reachable_placements(
+                cells,
+                piece,
+                width,
+                height,
             )
+        else:
+            placements = self._drop_placements(cells, piece, width, height)
+
+        best = None
+        for placement in placements:
+            if piece == PieceType.T:
+                attack = self._visible_attack_for_reachable_placement(
+                    cells,
+                    piece,
+                    placement,
+                    width,
+                    height,
+                )
+            else:
+                perfect_clear = placement.cleared_lines > 0 and not placement.cells
+                attack = attack_for_clear(
+                    placement.cleared_lines,
+                    perfect_clear=perfect_clear,
+                )
             score = self.evaluator.score(
                 placement.cells,
                 width,

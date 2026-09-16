@@ -132,6 +132,26 @@ class VisibleAttackPlannerTests(unittest.TestCase):
         self.assertEqual(event.lines, 1)
         self.assertEqual(attack_for_event(event), 2)
 
+    def test_future_visible_t_piece_scores_reachable_t_spin(self):
+        locked = frozenset({(0, 0), (2, 0), (0, 2), (3, 1)})
+        planner = VisibleAttackPlacementPlanner(
+            evaluator=_zero_board_evaluator(),
+            search_depth=2,
+            spawn_y=0,
+            attack_weight=10.0,
+        )
+
+        score = planner._best_attack_future_score(
+            locked,
+            (PieceType.T,),
+            depth=1,
+            width=4,
+            height=4,
+            memo={},
+        )
+
+        self.assertEqual(score, 20.0)
+
     def test_standard_cpu_uses_attack_planner_by_default(self):
         strategy = StandardCpuStrategy(standard_cpu_profile("easy"))
         self.assertIsInstance(strategy.planner, VisibleAttackPlacementPlanner)
