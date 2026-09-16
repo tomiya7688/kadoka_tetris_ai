@@ -34,8 +34,8 @@ class AIProposal:
 class AIBackend(ABC):
     """Runtime-facing AI boundary.
 
-    Backends observe a game and propose semantic actions. They never mutate the
-    authoritative GameState directly.
+    Backends observe a game and propose semantic actions. They never own the
+    authoritative state transition.
     """
 
     @property
@@ -192,6 +192,7 @@ class PersistentProcessAIBackend(AIBackend):
         try:
             for line in self._process.stdout:
                 self._responses.put(line.rstrip("\r\n"))
+            self._responses.put(RuntimeError("external AI process stdout closed"))
         except BaseException as exc:  # transport failure is surfaced to decide()
             self._responses.put(exc)
 
@@ -222,8 +223,6 @@ class PersistentProcessAIBackend(AIBackend):
         if isinstance(item, BaseException):
             raise RuntimeError("external AI stdout reader failed") from item
         if not item:
-            if self._process.poll() is not None:
-                raise RuntimeError("external AI process exited before response")
             raise RuntimeError("external AI returned an empty response")
 
         try:
