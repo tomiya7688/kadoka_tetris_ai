@@ -5,9 +5,10 @@ import sys
 ROUTES = {
     "core": ("src/tetris/core", "tests/test_core.py + tests/test_game_state.py", "docs/context-routing.md#core"),
     "commands-runtime": ("src/tetris/application + adapters", "tests/test_commands.py + tests/test_adapters.py", "docs/context-routing.md#commands-runtime"),
+    "ai-runtime": ("src/tetris/application/ai_backend.py + ai_runner.py + command.py + ai_match.py", "tests/test_ai_backend_runtime.py + tests/test_ai_match.py + tests/test_commands.py", "docs/ai-runtime-backend.md"),
     "ai-cpu": ("src/tetris/ai + cpu", "tests/test_ai*.py + tests/test_cpu*.py", "docs/context-routing.md#ai-cpu"),
     "combat": ("core/application combat code", "tests/test_attack.py + test_combat_events.py + test_garbage.py", "docs/context-routing.md#combat"),
-    "observation": ("src/tetris/observation", "observation/AI tests", "docs/対戦UIと可視Observation.md"),
+    "observation": ("src/tetris/observation + application/ai_backend.py", "observation/AI tests", "docs/対戦UIと可視Observation.md + docs/ai-runtime-backend.md"),
     "benchmark": ("src/tetris/benchmark + cpu", "tests/test_cpu_benchmark*.py", "docs/CPUベンチマーク.md"),
     "distribution": ("build.bat + tools/distribution + runtime_paths.py", "unit tests + distribution smoke", ".github/workflows/windows-build.yml"),
     "build-policy": (".github/workflows + pyproject.toml + checker", "checker + compileall + ruff + unittest", "docs/コーディングルール.md"),
