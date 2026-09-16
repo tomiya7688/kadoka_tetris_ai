@@ -25,6 +25,7 @@ TETR.IO準拠の細部、完全な対戦攻撃処理、入力タイミング、U
 - GUI: Pygame 2.6.1
 - 自動テスト: Python `unittest`
 - 静的解析: Ruff（correctnessルールから段階導入）
+- Architecture checker: `tools/kadoka_rule_checker.py`
 - Windows配布: PyInstaller 6.22.2 `onedir`
 - ビルド入口: `build.bat`
 - 配布結果: `dist/KadokaTetrisAI/`
@@ -34,6 +35,21 @@ ZIPファイルそのものの自動生成は必須ではなく、生成され�
 
 Python/Pygame/PyInstaller構成は現時点の採用案であり固定ではない。常時配布可能性、保守性、UI、API連携、CIなどで明確な問題が継続する場合は、実装規模が小さいうちにGodot等への移行を検討する。
 
+## AI支援開発
+
+最初に大量のdocsを読むのではなく、`AI_CONTEXT.md` から作業を開始する。
+
+```text
+python tools/context_route.py --list
+python tools/context_route.py ai-cpu
+python tools/kadoka_rule_checker.py .
+```
+
+`docs/context-routing.md` が変更カテゴリから source / tests / docs / validation を直接ルーティングする。
+Goal / Required / Acceptance と対象契約・検証方法が十分なら、無関係な探索を続けない。
+
+Kadoka Othello AI / Kadoka Shougi AI は兄弟プロジェクトであり、CI・Runtime境界・benchmark・checkerなどの有効な手法を相互導入する。詳細は `docs/sibling-project-alignment.md` を参照する。
+
 ## CI
 
 GitHub Actionsでは、通常品質チェックと配布チェックを分離する。
@@ -42,11 +58,12 @@ GitHub Actionsでは、通常品質チェックと配布チェックを分離す
 
 PRとmain更新時にUbuntu上で高速に実行する。
 
-1. Python 3.11セットアップ
+1. architecture dependency checker
 2. `src` / `tests` / `tools` の構文コンパイル確認
 3. Ruffによるcorrectness静的解析
 4. 全`unittest`実行
 
+checkerはstyleを重複して判定せず、core/gameplayの依存境界など機械的に確定できる規則だけを扱う。
 既存コードには旧来の圧縮された記述が残っているため、現段階ではフォーマット全強制を行わず、実害のある静的解析から段階的に厳しくする。
 
 ### Windows distribution build
@@ -59,6 +76,8 @@ PRとmain更新時にWindows上で実際の配布経路を検証する。
 4. 凍結EXEのsmoke test
 5. `UserData` / Config初期化確認
 6. 配布ディレクトリをartifactとして保存
+
+source test成功とdistribution artifact成功は別の証拠として扱う。
 
 ## Windows配布ビルド
 
@@ -178,13 +197,15 @@ KadokaTetrisAI/
 
 ## 最初に読む資料
 
-- [作業ルール](AGENTS.md)
-- [コーディングルール](docs/コーディングルール.md)
-- [開発AI用チートシート](docs/AI用チートシート.md)
-- [簡単な設計書](docs/設計書.md)
-- [既存の開発予定](docs/開発予定.md)
-- [実装手順](docs/実装手順.md)
-- [評価者からのフィードバック](docs/評価/評価者からのフィードバック.md)
+通常は次の順で十分。
+
+1. [AI Context](AI_CONTEXT.md)
+2. 現在タスク
+3. [Context Routing](docs/context-routing.md) の該当route
+4. 対象source + matching tests
+5. 必要な場合だけ詳細設計・開発予定・評価フィードバック
+
+常に全資料を先読みしない。
 
 ## 配置
 
