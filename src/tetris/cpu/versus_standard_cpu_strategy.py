@@ -6,12 +6,12 @@ from dataclasses import replace
 from tetris.observation import BoardObservation, VersusPlayerObservation
 
 from .standard_cpu_profile import StandardCpuProfile
-from .visible_attack_placement_planner import VisibleAttackPlacementPlanner
 from .visible_board_evaluator import VisibleBoardEvaluator, VisibleBoardWeights
 from .visible_placement_planner import VisiblePlacementPlanner
+from .visible_t_spin_ready_planner import VisibleTSpinReadyPlanner
 
 
-VERSUS_STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-versus-v3"
+VERSUS_STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-versus-v4"
 
 
 class VersusStandardCpuStrategy:
@@ -77,11 +77,12 @@ class VersusStandardCpuStrategy:
 
     def _planner_for_mode(self, mode: str) -> VisiblePlacementPlanner:
         weights = self._weights_for_mode(mode)
-        return VisibleAttackPlacementPlanner(
+        return VisibleTSpinReadyPlanner(
             evaluator=VisibleBoardEvaluator(weights),
             search_depth=self.profile.search_depth,
             lookahead_discount=self.profile.lookahead_discount,
             attack_weight=self._attack_weight_for_mode(mode),
+            readiness_weight=self._t_spin_readiness_weight_for_mode(mode),
         )
 
     def _attack_weight_for_mode(self, mode: str) -> float:
@@ -91,6 +92,15 @@ class VersusStandardCpuStrategy:
             return 2.0
         if mode == "pressure":
             return 4.0
+        raise ValueError(f"unknown versus CPU mode: {mode}")
+
+    def _t_spin_readiness_weight_for_mode(self, mode: str) -> float:
+        if mode == "defense":
+            return 0.25
+        if mode == "neutral":
+            return 0.75
+        if mode == "pressure":
+            return 1.25
         raise ValueError(f"unknown versus CPU mode: {mode}")
 
     def _weights_for_mode(self, mode: str) -> VisibleBoardWeights:
