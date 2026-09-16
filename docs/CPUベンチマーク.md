@@ -23,10 +23,19 @@ Easy / Normal / Hardを同一seed範囲で一括比較する場合:
 KadokaTetrisAI.exe --benchmark-cpu all --benchmark-games 10 --benchmark-max-pieces 200 --benchmark-seed 0
 ```
 
-`all` は各レベルへ同じseed列を与えるため、ランダムなミノ列の差をCPU差と取り違えにくい。
+CPU同士を実際のGarbage対戦で比較する場合:
+
+```bat
+KadokaTetrisAI.exe --benchmark-versus easy hard --benchmark-games 10 --benchmark-max-pieces 200 --benchmark-seed 0
+```
+
+`--benchmark-versus A B` は1 seedにつき2戦行う。
+1戦目はA=P1 / B=P2、2戦目はA=P2 / B=P1と左右を反転する。
+両者には同一のミノseedを与え、2戦とも同一のGarbage穴seedを使う。
+したがって `--benchmark-games 10` なら20戦になる。
 
 配布EXEはwindowedビルドなので、結果は標準出力だけに依存せずJSONファイルへ保存する。
-デフォルト保存先は `UserData/Logs/cpu-benchmark.json`。
+通常ベンチマークのデフォルト保存先は `UserData/Logs/cpu-benchmark.json`、対戦ベンチマークは `UserData/Logs/cpu-versus-benchmark.json`。
 
 任意の保存先を指定する場合:
 
@@ -42,25 +51,12 @@ CPU比較では同じseed範囲を使用する。
 標準CPUの評価重みは `UserData/Config/standard_cpu.json` から読み込む。
 重みを変更して比較する場合もseed範囲を固定する。
 
-## 結果の識別情報
+## 1人用ベンチマーク
 
 JSONには `benchmark_schema_version`、CPUプロファイル情報、評価器情報を含める。
 現在のbenchmark schemaはv3。
 
-- CPU実装ID
-- CPUレベル名
-- 探索深度
-- 入力間隔tick
-- lookahead係数
-- 評価器ID
-- 実際に使用した6つの評価重み
-
-現在の標準CPU実装IDは `standard-visible-v1`、評価器IDは `visible-board-v1`。
-アルゴリズム互換性を壊す変更を行う場合は実装IDまたは評価器IDを更新し、古いベンチマーク結果と区別できるようにする。
-
-## 主要な出力
-
-ゲームごとに以下を記録する。
+ゲームごとに主に以下を記録する。
 
 - 配置したミノ数
 - 消去ライン数 / lines per placement
@@ -70,58 +66,63 @@ JSONには `benchmark_schema_version`、CPUプロファイル情報、評価器�
 - B2B difficult clear回数
 - 最大Combo
 - game overの有無
-- piece limit到達の有無
-- tick limit到達の有無
-- 最終盤面高 / 最終穴数 / 最終凹凸
-- 最大盤面高 / 最大穴数 / 最大凹凸
-- 平均盤面高 / 平均穴数 / 平均凹凸
-- CPU判断呼び出し回数
-- CPU判断に使用した累積時間
-- 1配置あたり判断時間
-- 1配置あたりtick数
+- piece limit / tick limit
+- 最終・最大・平均の盤面高 / 穴数 / 凹凸
+- CPU判断回数 / 判断時間
 
-レポート全体には複数ゲームの合計・平均値も含める。
-`--benchmark-cpu all` の比較レポートは `summary_by_level` と各レベルの完全な個別レポートを保持する。
-weight sweepの `summary_by_candidate` にも攻撃量やT-Spin等の対戦出力指標が含まれるため、単純なライン数だけでなく火力の変化も比較できる。
+`--benchmark-cpu all` は `summary_by_level`、weight sweepは `summary_by_candidate` を持つ。
 
-## 公平性
+## CPU-vs-CPU対戦ベンチマーク
 
-CPUの意思決定は通常プレイ時と同じ経路を使う。
+対戦用JSONは独立した `versus_benchmark_schema_version` を持つ。
+各ミラー戦について以下を記録する。
+
+- 勝者 / draw
+- KO / piece-limit / tick-limit
+- A/Bがどちらのplayer slotを使ったか
+- 配置数 / ライン数
+- outgoing attack
+- cancelled garbage
+- garbage received
+- T-Spin / Perfect Clear / max combo
+- 最終stack height / holes
+- CPU判断時間
+- neutral / defense / pressureで作った配置プラン数
+
+集計はplayer 0/1ではなく競技者A/Bへ戻して行うため、左右を入れ替えた結果を同じCPU側へ合算できる。
+
+## 公平性と可視情報境界
+
+1人用CPUは `PlayerObservation`、対戦CPUは `VersusPlayerObservation` だけを判断入力にする。
 
 ```text
-VisiblePlayerObserver
+VersusSession
+    ↓ 可視情報抽出
+VisibleVersusObserver
     ↓
-PlayerObservation
+VersusPlayerObservation
     ↓
-StandardCpuStrategy
+VersusStandardCpuStrategy
     ↓
-VisibleCpuController
+VisibleVersusCpuController
     ↓
 InputAction
     ↓
-InputRouter
-    ↓
-TickEngine
+InputRouter / TickEngine
 ```
 
-ベンチマーク専用にGameState内部値をCPUへ渡す経路は作らない。
-盤面品質メトリクスもPlayerObservationの可視盤面から算出する。
-
-攻撃量、T-Spin、Perfect Clear、B2B、ComboはLockEventから**計測専用**に集計する。
-これらの内部イベント値を標準CPUの判断入力へ追加しないため、visible-only境界は維持される。
-
-ベンチマークハーネス自身は試合終了判定や集計のためにゲームのライン数・game over状態・LockEventを読むが、それらはCPUの判断入力には使用しない。
+ベンチマークハーネスは勝敗や計測のためGameState / PlayerResultを読むが、それらはCPUへ渡さない。
+LockEvent、bag/RNG内部状態、攻撃履歴、相殺履歴などもCPU判断入力には含めない。
 
 ## 停止条件
 
-通常は `--benchmark-max-pieces` に到達するかgame overで終了する。
-不具合やCPU停止で無限ループしないよう、内部で1配置あたり最大120tickの安全上限を持つ。
+通常は両者が `--benchmark-max-pieces` に到達するか、どちらかがKOすると終了する。
+CPU停止や不具合で無限ループしないよう1配置あたり最大120tick相当の安全上限を持つ。
 
 ## 今後の拡張
 
 - CSV出力
 - 並列実行
-- Garbage受信量・相殺量・勝敗を含むCPU-vs-CPU対戦ベンチマーク
 - T-Spin Mini / SRS準拠判定による攻撃指標の精密化
-- Block Slime / Kadokaモデルとの共通ベンチマーク
+- Block Slime / Kadokaモデルとの共通対戦ベンチマーク
 - CIでの性能退行検出
