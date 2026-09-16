@@ -11,7 +11,7 @@ from .visible_board_evaluator import VisibleBoardEvaluator, VisibleBoardWeights
 from .visible_placement_planner import VisiblePlacementPlanner
 
 
-VERSUS_STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-versus-v2"
+VERSUS_STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-versus-v3"
 
 
 class VersusStandardCpuStrategy:
