@@ -12,6 +12,7 @@ from tetris.adapters.pygame_versus_app import PygameVersusApp
 from tetris.benchmark import (
     StandardCpuBenchmark,
     StandardCpuComparison,
+    StandardCpuVersusBenchmark,
     StandardCpuWeightSweep,
 )
 from tetris.cpu import (
@@ -81,6 +82,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="sweep each evaluator weight around the configured baseline",
     )
+    benchmark_mode.add_argument(
+        "--benchmark-versus",
+        nargs=2,
+        metavar=("LEVEL_A", "LEVEL_B"),
+        choices=("easy", "normal", "hard"),
+        default=None,
+        help="run mirrored visible CPU-vs-CPU matches for two levels",
+    )
     parser.add_argument(
         "--benchmark-weight-step",
         type=float,
@@ -91,13 +100,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--benchmark-games",
         type=int,
         default=1,
-        help="number of reproducible headless benchmark games",
+        help="number of reproducible benchmark seeds (versus runs two mirrored legs each)",
     )
     parser.add_argument(
         "--benchmark-max-pieces",
         type=int,
         default=100,
-        help="maximum locked pieces per benchmark game",
+        help="maximum locked pieces per player in each benchmark game",
     )
     parser.add_argument(
         "--benchmark-seed",
@@ -126,7 +135,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     config_dir = user_data / "Config"
     ensure_standard_cpu_config(config_dir)
 
-    if args.benchmark_cpu is not None or args.benchmark_weight_sweep is not None:
+    if (
+        args.benchmark_cpu is not None
+        or args.benchmark_weight_sweep is not None
+        or args.benchmark_versus is not None
+    ):
         return _run_cpu_benchmark(args, user_data)
 
     bindings = load_keyboard_bindings(config_dir)
@@ -179,7 +192,15 @@ def _run_versus(
 def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
     cpu_config = load_standard_cpu_config(user_data / "Config")
     default_filename = "cpu-benchmark.json"
-    if args.benchmark_weight_sweep is not None:
+    if args.benchmark_versus is not None:
+        benchmark = StandardCpuVersusBenchmark(
+            args.benchmark_versus[0],
+            args.benchmark_versus[1],
+            max_pieces_per_player=args.benchmark_max_pieces,
+            weights=cpu_config.weights,
+        )
+        default_filename = "cpu-versus-benchmark.json"
+    elif args.benchmark_weight_sweep is not None:
         benchmark = StandardCpuWeightSweep(
             args.benchmark_weight_sweep,
             max_pieces=args.benchmark_max_pieces,
