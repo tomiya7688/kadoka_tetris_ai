@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 
 
-STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-v2"
+STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-v3"
 
 
 @dataclass(frozen=True)
