@@ -12,6 +12,10 @@ from .standard_cpu_profile import (
     standard_cpu_profile,
 )
 from .standard_cpu_strategy import StandardCpuStrategy
+from .versus_standard_cpu_strategy import (
+    VERSUS_STANDARD_CPU_IMPLEMENTATION_ID,
+    VersusStandardCpuStrategy,
+)
 from .visible_board_evaluator import (
     VISIBLE_BOARD_EVALUATOR_ID,
     VisibleBoardEvaluator,
@@ -19,3 +23,7 @@ from .visible_board_evaluator import (
 )
 from .visible_cpu_controller import VisibleCpuController, VisibleCpuStrategy
 from .visible_placement_planner import VisiblePlacementPlanner, VisiblePlannedMove
+from .visible_versus_cpu_controller import (
+    VisibleVersusCpuController,
+    VisibleVersusCpuStrategy,
+)

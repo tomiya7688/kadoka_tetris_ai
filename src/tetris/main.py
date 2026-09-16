@@ -16,6 +16,7 @@ from tetris.benchmark import (
 )
 from tetris.cpu import (
     StandardCpuStrategy,
+    VersusStandardCpuStrategy,
     ensure_standard_cpu_config,
     load_standard_cpu_config,
     standard_cpu_profile,
@@ -59,7 +60,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--versus-cpu-level",
         choices=("off", "easy", "normal", "hard"),
         default="off",
-        help="in versus mode, let the built-in CPU control player 2",
+        help="in versus mode, let the visible opponent-aware CPU control player 2",
     )
     parser.add_argument(
         "--versus-garbage-seed",
@@ -164,7 +165,7 @@ def _run_versus(
     cpu_strategy = None
     if args.versus_cpu_level != "off":
         cpu_config = load_standard_cpu_config(config_dir)
-        cpu_strategy = StandardCpuStrategy(
+        cpu_strategy = VersusStandardCpuStrategy(
             standard_cpu_profile(args.versus_cpu_level),
             weights=cpu_config.weights,
         )
