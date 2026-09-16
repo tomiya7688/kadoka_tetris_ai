@@ -37,6 +37,7 @@ def verify_distribution(distribution_dir: Path) -> None:
             raise RuntimeError(f"missing runtime file: {path}")
 
     _verify_frozen_benchmark(executable, distribution_dir, user_data)
+    _verify_frozen_versus_benchmark(executable, distribution_dir, user_data)
 
 
 def _verify_frozen_benchmark(
@@ -75,6 +76,47 @@ def _verify_frozen_benchmark(
     games = payload.get("games", [])
     if len(games) != 1 or games[0].get("placements") != 1:
         raise RuntimeError("frozen benchmark did not place exactly one piece")
+    benchmark_output.unlink()
+
+
+def _verify_frozen_versus_benchmark(
+    executable: Path,
+    distribution_dir: Path,
+    user_data: Path,
+) -> None:
+    benchmark_output = user_data / "Logs" / "smoke-versus-benchmark.json"
+    subprocess.run(
+        [
+            str(executable),
+            "--benchmark-versus",
+            "easy",
+            "normal",
+            "--benchmark-games",
+            "1",
+            "--benchmark-max-pieces",
+            "1",
+            "--benchmark-seed",
+            "321",
+            "--benchmark-output",
+            str(benchmark_output),
+        ],
+        cwd=distribution_dir,
+        check=True,
+        timeout=45,
+    )
+
+    if not benchmark_output.is_file():
+        raise RuntimeError("frozen versus benchmark did not create JSON output")
+    payload = json.loads(benchmark_output.read_text(encoding="utf-8"))
+    if payload.get("mode") != "cpu-versus":
+        raise RuntimeError("frozen versus benchmark reported the wrong mode")
+    legs = payload.get("legs", [])
+    if len(legs) != 2:
+        raise RuntimeError("frozen versus benchmark did not run two mirrored legs")
+    if legs[0].get("a", {}).get("player") != 0:
+        raise RuntimeError("first frozen versus leg did not place A on player 0")
+    if legs[1].get("a", {}).get("player") != 1:
+        raise RuntimeError("mirrored frozen versus leg did not move A to player 1")
     benchmark_output.unlink()
 
 
