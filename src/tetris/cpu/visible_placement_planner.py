@@ -1,9 +1,9 @@
 """Placement search that consumes only player-visible observations."""
 
+from collections import deque
 from dataclasses import dataclass
 
-from tetris.core import PieceType
-from tetris.core.tetromino import SHAPES
+from tetris.core import ActivePiece, PieceType
 from tetris.observation import Cell, PlayerObservation
 
 from .visible_board_evaluator import VisibleBoardEvaluator
@@ -24,6 +24,17 @@ class _PlacementResult:
     cleared_lines: int
     rotation: int
     x: int
+    actions: tuple[str, ...] = ()
+    last_rotation: bool = False
+
+
+@dataclass(frozen=True)
+class _SearchState:
+    x: int
+    y: int
+    rotation: int
+    last_rotation: bool
+    actions: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -34,7 +45,14 @@ class _RootOption:
 
 
 class VisiblePlacementPlanner:
-    """Search current/HOLD and visible NEXT pieces without bag or RNG access."""
+    """Search current/HOLD and visible NEXT pieces without bag or RNG access.
+
+    The current piece is searched with semantic move/rotate/soft-drop transitions that
+    mirror the public rules engine.  This guarantees that the emitted root action
+    sequence is reachable instead of merely assuming that every final geometry can be
+    produced.  Deeper NEXT lookahead remains a cheaper geometric drop approximation;
+    every piece is replanned with reachable search once it becomes current.
+    """
 
     def __init__(
         self,
@@ -60,7 +78,7 @@ class VisiblePlacementPlanner:
 
         for option in self._root_options(observation):
             depth = min(self.search_depth, 1 + len(option.future_pieces))
-            for placement in self._placements(
+            for placement in self._reachable_placements(
                 board.locked_cells,
                 option.piece,
                 board.width,
@@ -83,11 +101,7 @@ class VisiblePlacementPlanner:
                     )
                     score += self.lookahead_discount * future_score
 
-                actions = self._actions_for(
-                    placement.rotation,
-                    placement.x,
-                    board.width,
-                )
+                actions = placement.actions
                 if option.used_hold:
                     actions = ("hold",) + actions
 
@@ -155,7 +169,7 @@ class VisiblePlacementPlanner:
             return cached
 
         best = None
-        for placement in self._placements(cells, pieces[0], width, height):
+        for placement in self._drop_placements(cells, pieces[0], width, height):
             score = self.evaluator.score(
                 placement.cells,
                 width,
@@ -178,7 +192,190 @@ class VisiblePlacementPlanner:
         memo[key] = result
         return result
 
-    def _placements(
+    def _reachable_placements(
+        self,
+        locked_cells: frozenset[Cell],
+        piece: PieceType,
+        width: int,
+        height: int,
+    ) -> tuple[_PlacementResult, ...]:
+        spawn = _SearchState(
+            x=(width - 4) // 2,
+            y=0,
+            rotation=0,
+            last_rotation=False,
+            actions=(),
+        )
+        if not self._can_place_state(locked_cells, piece, spawn, width, height):
+            return ()
+
+        queue = deque([spawn])
+        seen = {self._state_key(spawn)}
+        placements: dict[
+            tuple[frozenset[Cell], int, bool],
+            _PlacementResult,
+        ] = {}
+
+        while queue:
+            state = queue.popleft()
+            placement = self._hard_drop_result(
+                locked_cells,
+                piece,
+                state,
+                width,
+                height,
+            )
+            final_cells = self._absolute_cells(
+                piece,
+                placement.rotation,
+                placement.x,
+                self._hard_drop_y(
+                    locked_cells,
+                    piece,
+                    state,
+                    width,
+                    height,
+                ),
+            )
+            placement_key = (
+                final_cells,
+                placement.rotation % 4,
+                placement.last_rotation,
+            )
+            previous = placements.get(placement_key)
+            if previous is None or len(placement.actions) < len(previous.actions):
+                placements[placement_key] = placement
+
+            for next_state in self._successors(
+                locked_cells,
+                piece,
+                state,
+                width,
+                height,
+            ):
+                key = self._state_key(next_state)
+                if key in seen:
+                    continue
+                seen.add(key)
+                queue.append(next_state)
+
+        return tuple(placements.values())
+
+    def _successors(
+        self,
+        locked_cells: frozenset[Cell],
+        piece: PieceType,
+        state: _SearchState,
+        width: int,
+        height: int,
+    ) -> tuple[_SearchState, ...]:
+        successors = []
+
+        for dx, action in ((-1, "move_left"), (1, "move_right")):
+            candidate = _SearchState(
+                state.x + dx,
+                state.y,
+                state.rotation,
+                False,
+                state.actions + (action,),
+            )
+            if self._can_place_state(locked_cells, piece, candidate, width, height):
+                successors.append(candidate)
+
+        for direction, action in ((1, "rotate_cw"), (-1, "rotate_ccw")):
+            candidate = self._rotate_state(
+                locked_cells,
+                piece,
+                state,
+                direction,
+                action,
+                width,
+                height,
+            )
+            if candidate is not None:
+                successors.append(candidate)
+
+        candidate = _SearchState(
+            state.x,
+            state.y + 1,
+            state.rotation,
+            state.last_rotation,
+            state.actions + ("soft_drop",),
+        )
+        if self._can_place_state(locked_cells, piece, candidate, width, height):
+            successors.append(candidate)
+
+        return tuple(successors)
+
+    def _rotate_state(
+        self,
+        locked_cells: frozenset[Cell],
+        piece: PieceType,
+        state: _SearchState,
+        direction: int,
+        action: str,
+        width: int,
+        height: int,
+    ) -> _SearchState | None:
+        rotation = state.rotation + direction
+        for dx in (0, -1, 1, -2, 2):
+            candidate = _SearchState(
+                state.x + dx,
+                state.y,
+                rotation,
+                True,
+                state.actions + (action,),
+            )
+            if self._can_place_state(locked_cells, piece, candidate, width, height):
+                return candidate
+        return None
+
+    def _hard_drop_result(
+        self,
+        locked_cells: frozenset[Cell],
+        piece: PieceType,
+        state: _SearchState,
+        width: int,
+        height: int,
+    ) -> _PlacementResult:
+        y = self._hard_drop_y(locked_cells, piece, state, width, height)
+        placed = locked_cells | self._absolute_cells(
+            piece,
+            state.rotation,
+            state.x,
+            y,
+        )
+        cleared_cells, cleared_lines = self._clear_full_rows(placed, width, height)
+        return _PlacementResult(
+            cells=cleared_cells,
+            cleared_lines=cleared_lines,
+            rotation=state.rotation % 4,
+            x=state.x,
+            actions=state.actions + ("hard_drop",),
+            last_rotation=state.last_rotation,
+        )
+
+    def _hard_drop_y(
+        self,
+        locked_cells: frozenset[Cell],
+        piece: PieceType,
+        state: _SearchState,
+        width: int,
+        height: int,
+    ) -> int:
+        y = state.y
+        while self._can_place(
+            locked_cells,
+            self._piece_cells(piece, state.rotation),
+            state.x,
+            y + 1,
+            width,
+            height,
+        ):
+            y += 1
+        return y
+
+    def _drop_placements(
         self,
         locked_cells: frozenset[Cell],
         piece: PieceType,
@@ -186,9 +383,15 @@ class VisiblePlacementPlanner:
         height: int,
     ) -> tuple[_PlacementResult, ...]:
         placements = []
-        for rotation, shape in self._rotations(piece):
-            shape_width = max(x for x, _ in shape) + 1
-            for x in range(0, width - shape_width + 1):
+        seen_shapes = set()
+        for rotation in range(4):
+            shape = self._piece_cells(piece, rotation)
+            if shape in seen_shapes:
+                continue
+            seen_shapes.add(shape)
+            min_x = min(x for x, _ in shape)
+            max_x = max(x for x, _ in shape)
+            for x in range(-min_x, width - max_x):
                 y = 0
                 if not self._can_place(locked_cells, shape, x, y, width, height):
                     continue
@@ -221,25 +424,42 @@ class VisiblePlacementPlanner:
                 )
         return tuple(placements)
 
-    def _rotations(
+    @staticmethod
+    def _piece_cells(piece: PieceType, rotation: int) -> tuple[Cell, ...]:
+        return tuple(ActivePiece(piece, 0, 0, rotation).cells())
+
+    def _can_place_state(
+        self,
+        locked_cells: frozenset[Cell],
+        piece: PieceType,
+        state: _SearchState,
+        width: int,
+        height: int,
+    ) -> bool:
+        return self._can_place(
+            locked_cells,
+            self._piece_cells(piece, state.rotation),
+            state.x,
+            state.y,
+            width,
+            height,
+        )
+
+    def _absolute_cells(
         self,
         piece: PieceType,
-    ) -> tuple[tuple[int, tuple[Cell, ...]], ...]:
-        shape = tuple(SHAPES[piece])
-        rotations = []
-        seen = set()
-        for rotation in range(4):
-            normalized = self._normalize(shape)
-            if normalized not in seen:
-                seen.add(normalized)
-                rotations.append((rotation, normalized))
-            shape = tuple((-y, x) for x, y in shape)
-        return tuple(rotations)
+        rotation: int,
+        x: int,
+        y: int,
+    ) -> frozenset[Cell]:
+        return frozenset(
+            (x + local_x, y + local_y)
+            for local_x, local_y in self._piece_cells(piece, rotation)
+        )
 
-    def _normalize(self, shape: tuple[Cell, ...]) -> tuple[Cell, ...]:
-        min_x = min(x for x, _ in shape)
-        min_y = min(y for _, y in shape)
-        return tuple(sorted((x - min_x, y - min_y) for x, y in shape))
+    @staticmethod
+    def _state_key(state: _SearchState) -> tuple[int, int, int, bool]:
+        return state.x, state.y, state.rotation % 4, state.last_rotation
 
     def _can_place(
         self,
@@ -280,26 +500,3 @@ class VisiblePlacementPlanner:
             drop = sum(1 for full_y in full_rows if full_y > y)
             remaining.append((x, y + drop))
         return frozenset(remaining), len(full_rows)
-
-    def _actions_for(
-        self,
-        rotation: int,
-        target_x: int,
-        width: int,
-    ) -> tuple[str, ...]:
-        if rotation == 0:
-            rotation_actions = ()
-        elif rotation == 1:
-            rotation_actions = ("rotate_cw",)
-        elif rotation == 2:
-            rotation_actions = ("rotate_cw", "rotate_cw")
-        else:
-            rotation_actions = ("rotate_ccw",)
-
-        spawn_x = (width - 4) // 2
-        delta_x = target_x - spawn_x
-        if delta_x < 0:
-            movement_actions = ("move_left",) * -delta_x
-        else:
-            movement_actions = ("move_right",) * delta_x
-        return rotation_actions + movement_actions + ("hard_drop",)
