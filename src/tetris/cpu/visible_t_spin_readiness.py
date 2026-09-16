@@ -13,21 +13,26 @@ class VisibleTSpinReadinessEvaluator:
     """Estimate preserved T-Spin attack potential from visible board geometry.
 
     This evaluator does not assume that a T piece is currently available and never
-    reads bag/RNG state.  It searches only fully visible geometric T placements that
+    reads bag/RNG state. It searches only fully visible geometric T placements that
     would be resting, satisfy the runtime three-corner T-Spin rule, and clear at least
-    one line.  The returned value is the best base attack such a future T could make.
+    one line. The returned value is the best base attack such a future T could make.
 
     Reachability is deliberately not searched here: this is a cheap long-horizon
     readiness signal, while actual visible T pieces are validated by the planner's
     semantic-action search before their attack is scored.
     """
 
+    @lru_cache(maxsize=2048)
     def best_attack(
         self,
         cells: frozenset[Cell],
         width: int,
         height: int,
     ) -> int:
+        missing_by_row = self._candidate_clear_rows(cells, width, height)
+        if not missing_by_row:
+            return 0
+
         best = 0
         for rotation in range(4):
             shape = self._t_cells(rotation)
@@ -43,6 +48,13 @@ class VisibleTSpinReadinessEvaluator:
                         for local_x, local_y in shape
                     )
                     if piece_cells & cells:
+                        continue
+
+                    full_rows = self._completed_candidate_rows(
+                        piece_cells,
+                        missing_by_row,
+                    )
+                    if not full_rows:
                         continue
                     if self._can_move_down(piece_cells, cells, height):
                         continue
@@ -60,25 +72,49 @@ class VisibleTSpinReadinessEvaluator:
                         continue
 
                     placed = cells | piece_cells
-                    full_rows = {
-                        y
-                        for y in range(height)
-                        if all((x, y) in placed for x in range(width))
-                    }
-                    lines = len(full_rows)
-                    if lines == 0:
-                        continue
-
                     perfect_clear = all(y in full_rows for _, y in placed)
                     best = max(
                         best,
                         attack_for_clear(
-                            lines,
+                            len(full_rows),
                             t_spin=True,
                             perfect_clear=perfect_clear,
                         ),
                     )
         return best
+
+    @staticmethod
+    def _candidate_clear_rows(
+        cells: frozenset[Cell],
+        width: int,
+        height: int,
+    ) -> dict[int, frozenset[int]]:
+        occupied_by_row = [set() for _ in range(height)]
+        for x, y in cells:
+            if 0 <= y < height:
+                occupied_by_row[y].add(x)
+
+        candidates = {}
+        for y, occupied in enumerate(occupied_by_row):
+            missing_count = width - len(occupied)
+            if not 1 <= missing_count <= 3:
+                continue
+            candidates[y] = frozenset(x for x in range(width) if x not in occupied)
+        return candidates
+
+    @staticmethod
+    def _completed_candidate_rows(
+        piece_cells: frozenset[Cell],
+        missing_by_row: dict[int, frozenset[int]],
+    ) -> frozenset[int]:
+        piece_x_by_row: dict[int, set[int]] = {}
+        for x, y in piece_cells:
+            piece_x_by_row.setdefault(y, set()).add(x)
+        return frozenset(
+            y
+            for y, missing in missing_by_row.items()
+            if missing.issubset(piece_x_by_row.get(y, set()))
+        )
 
     @staticmethod
     def _can_move_down(
