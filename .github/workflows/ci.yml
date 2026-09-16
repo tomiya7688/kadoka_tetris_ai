@@ -37,6 +37,9 @@ jobs:
       - name: Check architecture boundaries
         run: python tools/kadoka_rule_checker.py .
 
+      - name: Validate family model metadata
+        run: python tools/family_metadata/script/validate_metadata.py --game tetris models/examples/family_metadata.json
+
       - name: Compile Python sources
         run: python -m compileall -q src tests tools
 
