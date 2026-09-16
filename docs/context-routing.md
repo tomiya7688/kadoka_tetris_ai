@@ -20,6 +20,17 @@
 - Invariant: 人間とAIは同じ権威ある状態遷移を通る
 - Validation: deterministic input/seedを優先
 
+## ai-runtime
+
+AI backend、proposal、外部process/script transport、authoritative command境界。
+
+- Source: `src/tetris/application/ai_backend.py`, `src/tetris/application/ai_runner.py`, `src/tetris/application/command.py`, `src/tetris/application/ai_match.py`
+- Tests: `tests/test_ai_backend_runtime.py`, `tests/test_ai_match.py`, `tests/test_commands.py`
+- Docs: `docs/ai-runtime-backend.md`, `docs/sibling-project-alignment.md`
+- Invariant: AIはproposalのみ返し、状態遷移はCommand/TickEngineが所有する
+- Performance: native backendへprocess/serialization overheadを持ち込まない
+- Validation: targeted runtime tests -> AI match -> shared command変更時のみ全体
+
 ## ai-cpu
 
 AI判断、CPU評価、候補生成、対戦AI。
@@ -41,9 +52,9 @@ AI判断、CPU評価、候補生成、対戦AI。
 
 AIへ渡す観測、可視化用観測。
 
-- Source: `src/tetris/observation/`
+- Source: `src/tetris/observation/` と `src/tetris/application/ai_backend.py::public_observation`
 - Tests: observation/AI関連テスト
-- Docs: `docs/対戦UIと可視Observation.md`
+- Docs: `docs/対戦UIと可視Observation.md`, `docs/ai-runtime-backend.md`
 - Invariant: hidden future pieces / internal RNG stateを漏らさない
 
 ## benchmark
