@@ -12,6 +12,34 @@ Kadoka Tetris AI / Kadoka Othello AI / Kadoka Shougi AI は兄弟プロジェク
 - GUIより先にheadless/structured validationを使う。
 - hot pathでは測定根拠のある局所最適化を許可するが、依存方向を逆転させない。
 
+## 共通AI backend vocabulary
+
+兄弟プロジェクトでは、AIの実行方式を次の共通カテゴリで表します。
+
+- `native`
+- `dynamic_library`
+- `external_process`
+- `script`
+- `network`
+
+これはAIの強さや探索方式ではなく、RuntimeからAIを呼ぶtransport/execution方式を表します。
+
+Tetrisでは最終的に、
+
+```text
+Observation
+    ↓
+AI backend / adapter
+    ↓
+semantic command
+    ↓
+authoritative game core
+```
+
+へ揃えます。backendが内部状態を直接変更することはありません。
+
+外部process/scriptはCoreへ混ぜず、Runtime/adapter層に置きます。大量simulationでは毎判断process spawnする方式を標準にせず、persistent sessionまたはnative/in-process経路を優先します。
+
 ## 他兄弟から取り込むもの
 
 ### Kadoka Othello AI
@@ -27,6 +55,7 @@ Kadoka Tetris AI / Kadoka Othello AI / Kadoka Shougi AI は兄弟プロジェク
 - AI/engine結果はcore検証前は非権威
 - 小さい再現局面による回帰テスト
 - core/runtime/protocolの一方向依存
+- `AIBackend` によるnative/process/script/network共通Runner境界
 
 ### Kadoka Tetris AIから兄弟へ返すもの
 
