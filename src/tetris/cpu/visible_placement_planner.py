@@ -52,6 +52,11 @@ class VisiblePlacementPlanner:
     sequence is reachable instead of merely assuming that every final geometry can be
     produced.  Deeper NEXT lookahead remains a cheaper geometric drop approximation;
     every piece is replanned with reachable search once it becomes current.
+
+    ``spawn_y`` is a public rules parameter expressed in visible-field coordinates.
+    The default ``-2`` matches the built-in field's two hidden spawn rows.  Hidden row
+    *contents* are never observed; cells above the visible field are conservatively
+    treated as empty and any plan that would lock cells there is discarded.
     """
 
     def __init__(
@@ -59,14 +64,18 @@ class VisiblePlacementPlanner:
         evaluator: VisibleBoardEvaluator | None = None,
         search_depth: int = 2,
         lookahead_discount: float = 0.35,
+        spawn_y: int = -2,
     ):
         if search_depth < 1:
             raise ValueError("search_depth must be at least 1")
         if not 0.0 <= lookahead_discount <= 1.0:
             raise ValueError("lookahead_discount must be between 0 and 1")
+        if not isinstance(spawn_y, int) or isinstance(spawn_y, bool) or spawn_y > 0:
+            raise ValueError("spawn_y must be a nonpositive integer")
         self.evaluator = evaluator or VisibleBoardEvaluator()
         self.search_depth = search_depth
         self.lookahead_discount = lookahead_discount
+        self.spawn_y = spawn_y
 
     def choose(self, observation: PlayerObservation) -> VisiblePlannedMove:
         if observation.current_piece is None:
@@ -201,7 +210,7 @@ class VisiblePlacementPlanner:
     ) -> tuple[_PlacementResult, ...]:
         spawn = _SearchState(
             x=(width - 4) // 2,
-            y=0,
+            y=self.spawn_y,
             rotation=0,
             last_rotation=False,
             actions=(),
@@ -218,7 +227,7 @@ class VisiblePlacementPlanner:
 
         while queue:
             state = queue.popleft()
-            placement = self._hard_drop_result(
+            final_y = self._hard_drop_y(
                 locked_cells,
                 piece,
                 state,
@@ -227,24 +236,27 @@ class VisiblePlacementPlanner:
             )
             final_cells = self._absolute_cells(
                 piece,
-                placement.rotation,
-                placement.x,
-                self._hard_drop_y(
+                state.rotation,
+                state.x,
+                final_y,
+            )
+            if all(y >= 0 for _, y in final_cells):
+                placement = self._placement_result(
                     locked_cells,
                     piece,
                     state,
+                    final_y,
                     width,
                     height,
-                ),
-            )
-            placement_key = (
-                final_cells,
-                placement.rotation % 4,
-                placement.last_rotation,
-            )
-            previous = placements.get(placement_key)
-            if previous is None or len(placement.actions) < len(previous.actions):
-                placements[placement_key] = placement
+                )
+                placement_key = (
+                    final_cells,
+                    placement.rotation % 4,
+                    placement.last_rotation,
+                )
+                previous = placements.get(placement_key)
+                if previous is None or len(placement.actions) < len(previous.actions):
+                    placements[placement_key] = placement
 
             for next_state in self._successors(
                 locked_cells,
@@ -330,20 +342,20 @@ class VisiblePlacementPlanner:
                 return candidate
         return None
 
-    def _hard_drop_result(
+    def _placement_result(
         self,
         locked_cells: frozenset[Cell],
         piece: PieceType,
         state: _SearchState,
+        final_y: int,
         width: int,
         height: int,
     ) -> _PlacementResult:
-        y = self._hard_drop_y(locked_cells, piece, state, width, height)
         placed = locked_cells | self._absolute_cells(
             piece,
             state.rotation,
             state.x,
-            y,
+            final_y,
         )
         cleared_cells, cleared_lines = self._clear_full_rows(placed, width, height)
         return _PlacementResult(
@@ -392,7 +404,7 @@ class VisiblePlacementPlanner:
             min_x = min(x for x, _ in shape)
             max_x = max(x for x, _ in shape)
             for x in range(-min_x, width - max_x):
-                y = 0
+                y = self.spawn_y
                 if not self._can_place(locked_cells, shape, x, y, width, height):
                     continue
                 while self._can_place(
@@ -405,10 +417,13 @@ class VisiblePlacementPlanner:
                 ):
                     y += 1
 
-                placed = locked_cells | frozenset(
+                piece_cells = frozenset(
                     (x + local_x, y + local_y)
                     for local_x, local_y in shape
                 )
+                if any(cell_y < 0 for _, cell_y in piece_cells):
+                    continue
+                placed = locked_cells | piece_cells
                 cleared_cells, cleared_lines = self._clear_full_rows(
                     placed,
                     width,
@@ -473,9 +488,9 @@ class VisiblePlacementPlanner:
         for local_x, local_y in shape:
             cell_x = x + local_x
             cell_y = y + local_y
-            if cell_x < 0 or cell_x >= width or cell_y < 0 or cell_y >= height:
+            if cell_x < 0 or cell_x >= width or cell_y >= height:
                 return False
-            if (cell_x, cell_y) in locked_cells:
+            if cell_y >= 0 and (cell_x, cell_y) in locked_cells:
                 return False
         return True
 
