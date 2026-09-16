@@ -14,6 +14,8 @@ from tetris.cpu import (
     VisibleAttackPlacementPlanner,
     VisibleBoardEvaluator,
     VisibleBoardWeights,
+    VisibleTSpinReadinessEvaluator,
+    VisibleTSpinReadyPlanner,
     standard_cpu_profile,
 )
 from tetris.observation import BoardObservation, PlayerObservation
@@ -152,10 +154,36 @@ class VisibleAttackPlannerTests(unittest.TestCase):
 
         self.assertEqual(score, 20.0)
 
-    def test_standard_cpu_uses_attack_planner_by_default(self):
+    def test_readiness_detects_visible_t_spin_single_slot(self):
+        locked = frozenset({(0, 0), (2, 0), (0, 2), (3, 1)})
+        readiness = VisibleTSpinReadinessEvaluator()
+
+        self.assertEqual(readiness.best_attack(locked, width=4, height=4), 2)
+        self.assertEqual(readiness.best_attack(frozenset(), width=4, height=4), 0)
+
+    def test_readiness_weight_must_be_finite_and_nonnegative(self):
+        for value in (-1.0, float("inf"), float("nan")):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "readiness_weight"):
+                    VisibleTSpinReadyPlanner(readiness_weight=value)
+
+    def test_readiness_is_added_to_visible_board_score(self):
+        locked = frozenset({(0, 0), (2, 0), (0, 2), (3, 1)})
+        planner = VisibleTSpinReadyPlanner(
+            evaluator=_zero_board_evaluator(),
+            readiness_weight=0.75,
+            attack_weight=0.0,
+            spawn_y=0,
+        )
+
+        self.assertEqual(planner.evaluator.score(locked, 4, 4), 1.5)
+
+    def test_standard_cpu_uses_t_spin_ready_planner_by_default(self):
         strategy = StandardCpuStrategy(standard_cpu_profile("easy"))
+        self.assertIsInstance(strategy.planner, VisibleTSpinReadyPlanner)
         self.assertIsInstance(strategy.planner, VisibleAttackPlacementPlanner)
         self.assertEqual(strategy.planner.attack_weight, 2.0)
+        self.assertEqual(strategy.planner.readiness_weight, 0.75)
 
     def test_versus_modes_change_attack_priority(self):
         strategy = VersusStandardCpuStrategy(standard_cpu_profile("normal"))
@@ -167,6 +195,15 @@ class VisibleAttackPlannerTests(unittest.TestCase):
         self.assertLess(defense, neutral)
         self.assertLess(neutral, pressure)
         self.assertEqual((defense, neutral, pressure), (1.0, 2.0, 4.0))
+
+    def test_versus_modes_change_t_spin_readiness_priority(self):
+        strategy = VersusStandardCpuStrategy(standard_cpu_profile("normal"))
+
+        defense = strategy._t_spin_readiness_weight_for_mode("defense")
+        neutral = strategy._t_spin_readiness_weight_for_mode("neutral")
+        pressure = strategy._t_spin_readiness_weight_for_mode("pressure")
+
+        self.assertEqual((defense, neutral, pressure), (0.25, 0.75, 1.25))
 
 
 if __name__ == "__main__":
