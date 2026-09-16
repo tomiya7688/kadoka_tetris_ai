@@ -68,10 +68,9 @@ class ReachablePlacementSearchTests(unittest.TestCase):
 
     def test_reachable_search_can_move_after_descending(self):
         planner = VisiblePlacementPlanner(search_depth=1, spawn_y=0)
-        # A roof over columns 0-1 forces an O piece to descend on the right before
-        # sliding left into the lower cavity. A pure final-column hard drop cannot
-        # reach this placement.
-        locked = frozenset({(0, 2), (1, 2), (2, 4), (3, 4)})
+        # The occupied upper-right cell blocks a direct right-column drop. The O
+        # piece can descend on the left and then slide right underneath it.
+        locked = frozenset({(3, 3)})
 
         placements = planner._reachable_placements(
             locked,
