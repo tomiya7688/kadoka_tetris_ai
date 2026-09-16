@@ -34,6 +34,9 @@ jobs:
       - name: Install CI tools
         run: python -m pip install --disable-pip-version-check -r requirements-ci.txt
 
+      - name: Check architecture boundaries
+        run: python tools/kadoka_rule_checker.py .
+
       - name: Compile Python sources
         run: python -m compileall -q src tests tools
 
