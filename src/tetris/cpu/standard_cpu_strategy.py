@@ -5,6 +5,7 @@ from collections import deque
 from tetris.observation import PlayerObservation
 
 from .standard_cpu_profile import StandardCpuProfile
+from .visible_attack_placement_planner import VisibleAttackPlacementPlanner
 from .visible_board_evaluator import VisibleBoardEvaluator, VisibleBoardWeights
 from .visible_placement_planner import VisiblePlacementPlanner
 
@@ -21,10 +22,11 @@ class StandardCpuStrategy:
         if planner is not None and weights is not None:
             raise ValueError("planner and weights cannot both be supplied")
         self.profile = profile
-        self.planner = planner or VisiblePlacementPlanner(
+        self.planner = planner or VisibleAttackPlacementPlanner(
             evaluator=VisibleBoardEvaluator(weights),
             search_depth=profile.search_depth,
             lookahead_discount=profile.lookahead_discount,
+            attack_weight=2.0,
         )
         self._actions: deque[str] = deque()
         self._cooldown = 0

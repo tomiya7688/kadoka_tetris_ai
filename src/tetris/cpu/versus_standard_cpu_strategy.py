@@ -6,11 +6,12 @@ from dataclasses import replace
 from tetris.observation import BoardObservation, VersusPlayerObservation
 
 from .standard_cpu_profile import StandardCpuProfile
+from .visible_attack_placement_planner import VisibleAttackPlacementPlanner
 from .visible_board_evaluator import VisibleBoardEvaluator, VisibleBoardWeights
 from .visible_placement_planner import VisiblePlacementPlanner
 
 
-VERSUS_STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-versus-v1"
+VERSUS_STANDARD_CPU_IMPLEMENTATION_ID = "standard-visible-versus-v2"
 
 
 class VersusStandardCpuStrategy:
@@ -67,8 +68,8 @@ class VersusStandardCpuStrategy:
         if observation.incoming_garbage >= 3 or own_height >= 15:
             return "defense"
 
-        # Push line efficiency when the opponent is visibly vulnerable or already
-        # carrying a meaningful pending garbage queue.
+        # Push attack when the opponent is visibly vulnerable or already carrying a
+        # meaningful pending garbage queue.
         if opponent_height >= 14 or observation.opponent_incoming_garbage >= 4:
             return "pressure"
 
@@ -76,11 +77,21 @@ class VersusStandardCpuStrategy:
 
     def _planner_for_mode(self, mode: str) -> VisiblePlacementPlanner:
         weights = self._weights_for_mode(mode)
-        return VisiblePlacementPlanner(
+        return VisibleAttackPlacementPlanner(
             evaluator=VisibleBoardEvaluator(weights),
             search_depth=self.profile.search_depth,
             lookahead_discount=self.profile.lookahead_discount,
+            attack_weight=self._attack_weight_for_mode(mode),
         )
+
+    def _attack_weight_for_mode(self, mode: str) -> float:
+        if mode == "defense":
+            return 1.0
+        if mode == "neutral":
+            return 2.0
+        if mode == "pressure":
+            return 4.0
+        raise ValueError(f"unknown versus CPU mode: {mode}")
 
     def _weights_for_mode(self, mode: str) -> VisibleBoardWeights:
         if mode == "neutral":

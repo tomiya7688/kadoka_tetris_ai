@@ -16,6 +16,10 @@ from .versus_standard_cpu_strategy import (
     VERSUS_STANDARD_CPU_IMPLEMENTATION_ID,
     VersusStandardCpuStrategy,
 )
+from .visible_attack_placement_planner import (
+    VISIBLE_ATTACK_PLANNER_ID,
+    VisibleAttackPlacementPlanner,
+)
 from .visible_board_evaluator import (
     VISIBLE_BOARD_EVALUATOR_ID,
     VisibleBoardEvaluator,

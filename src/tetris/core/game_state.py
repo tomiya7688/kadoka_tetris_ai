@@ -1,16 +1,9 @@
 from .active_piece import ActivePiece
 from .bag import SevenBag
 from .board import Board
+from .combat_rules import is_t_spin_placement
 from .lock_event import LockEvent
 from .tetromino import PieceType, Tetromino
-
-
-_T_PIVOTS = {
-    0: (1, 1),
-    1: (0, 1),
-    2: (1, 0),
-    3: (1, 1),
-}
 
 
 class GameState:
@@ -147,7 +140,7 @@ class GameState:
     def add_garbage(self, hole_columns) -> bool:
         """Apply garbage rows and update top-out state.
 
-        Garbage is applied between placements by the versus coordinator.  The active
+        Garbage is applied between placements by the versus coordinator. The active
         piece is not moved with the stack; if the risen stack overlaps its spawn
         position the game is over.
         """
@@ -173,18 +166,13 @@ class GameState:
         return True
 
     def _is_t_spin(self, piece: ActivePiece) -> bool:
-        if piece.kind != PieceType.T or not self._last_rotation_successful:
-            return False
-
-        pivot_x, pivot_y = _T_PIVOTS[piece.rotation % 4]
-        center_x = piece.x + pivot_x
-        center_y = piece.y + pivot_y
-        occupied_corners = 0
-        for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
-            x = center_x + dx
-            y = center_y + dy
-            if x < 0 or x >= self.board.width or y < 0 or y >= self.board.height:
-                occupied_corners += 1
-            elif self.board.occupied(x, y):
-                occupied_corners += 1
-        return occupied_corners >= 3
+        return is_t_spin_placement(
+            piece.kind,
+            piece.rotation,
+            piece.x,
+            piece.y,
+            width=self.board.width,
+            height=self.board.height,
+            occupied=self.board.occupied,
+            last_rotation=self._last_rotation_successful,
+        )
