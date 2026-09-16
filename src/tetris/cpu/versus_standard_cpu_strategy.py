@@ -31,6 +31,7 @@ class VersusStandardCpuStrategy:
         self._actions: deque[str] = deque()
         self._cooldown = 0
         self.last_mode = "neutral"
+        self.mode_plan_counts = {"neutral": 0, "defense": 0, "pressure": 0}
 
     def choose(self, observation: VersusPlayerObservation) -> str | None:
         if self._cooldown > 0:
@@ -45,6 +46,7 @@ class VersusStandardCpuStrategy:
             except ValueError:
                 return None
             self.last_mode = mode
+            self.mode_plan_counts[mode] += 1
             self._actions.extend(move.actions)
 
         action = self._actions.popleft()
@@ -55,6 +57,7 @@ class VersusStandardCpuStrategy:
         self._actions.clear()
         self._cooldown = 0
         self.last_mode = "neutral"
+        self.mode_plan_counts = {"neutral": 0, "defense": 0, "pressure": 0}
 
     def _select_mode(self, observation: VersusPlayerObservation) -> str:
         own_height = self._stack_height(observation.own.board)
