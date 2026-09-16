@@ -55,7 +55,7 @@ class CpuBenchmarkTests(unittest.TestCase):
         self.assertEqual(payload["game_count"], 2)
         self.assertEqual(payload["summary"]["total_placements"], 4)
         self.assertIn("decision_ms_per_placement", payload["summary"])
-        self.assertEqual(payload["profile"]["implementation_id"], "standard-visible-v1")
+        self.assertEqual(payload["profile"]["implementation_id"], "standard-visible-v2")
         self.assertEqual(payload["profile"]["search_depth"], 1)
         self.assertEqual(payload["evaluator"]["evaluator_id"], "visible-board-v1")
         self.assertEqual(payload["evaluator"]["weights"]["holes"], -7.0)
