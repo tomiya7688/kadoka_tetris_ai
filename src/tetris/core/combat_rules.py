@@ -53,13 +53,15 @@ def is_t_spin_placement(
     height: int,
     occupied: Callable[[int, int], bool],
     last_rotation: bool,
+    top_out_of_bounds_occupied: bool = True,
 ) -> bool:
     """Apply the engine's current three-corner T-Spin rule to a placement.
 
-    ``occupied`` must describe the board *before* the T piece is locked. Out-of-field
-    corners count as occupied, matching the runtime rules engine. This helper is pure
-    with respect to GameState so visible-only CPU simulation can use the exact same
-    rule without receiving hidden engine state.
+    ``occupied`` must describe the board *before* the T piece is locked. Side and
+    bottom out-of-field corners always count as occupied. Runtime GameState also uses
+    the default ``top_out_of_bounds_occupied=True`` because y<0 is a real field wall.
+    A visible-only simulator may pass False because y<0 in visible coordinates means
+    hidden rows whose contents are unknown rather than a known wall.
     """
     if piece != PieceType.T or not last_rotation:
         return False
@@ -71,8 +73,10 @@ def is_t_spin_placement(
     for dx, dy in ((-1, -1), (1, -1), (-1, 1), (1, 1)):
         x = center_x + dx
         y = center_y + dy
-        if x < 0 or x >= width or y < 0 or y >= height:
+        if x < 0 or x >= width or y >= height:
             occupied_corners += 1
+        elif y < 0:
+            occupied_corners += int(top_out_of_bounds_occupied)
         elif occupied(x, y):
             occupied_corners += 1
     return occupied_corners >= 3
