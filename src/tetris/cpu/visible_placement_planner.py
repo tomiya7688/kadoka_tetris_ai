@@ -2,6 +2,7 @@
 
 from collections import deque
 from dataclasses import dataclass
+from functools import lru_cache
 
 from tetris.core import ActivePiece, PieceType
 from tetris.observation import Cell, PlayerObservation
@@ -34,7 +35,6 @@ class _SearchState:
     y: int
     rotation: int
     last_rotation: bool
-    actions: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -44,17 +44,21 @@ class _RootOption:
     used_hold: bool
 
 
+_StateKey = tuple[int, int, int, bool]
+_Parent = tuple[_StateKey | None, str | None]
+
+
 class VisiblePlacementPlanner:
     """Search current/HOLD and visible NEXT pieces without bag or RNG access.
 
     The current piece is searched with semantic move/rotate/soft-drop transitions that
-    mirror the public rules engine.  This guarantees that the emitted root action
+    mirror the public rules engine. This guarantees that the emitted root action
     sequence is reachable instead of merely assuming that every final geometry can be
-    produced.  Deeper NEXT lookahead remains a cheaper geometric drop approximation;
+    produced. Deeper NEXT lookahead remains a cheaper geometric drop approximation;
     every piece is replanned with reachable search once it becomes current.
 
     ``spawn_y`` is a public rules parameter expressed in visible-field coordinates.
-    The default ``-2`` matches the built-in field's two hidden spawn rows.  Hidden row
+    The default ``-2`` matches the built-in field's two hidden spawn rows. Hidden row
     *contents* are never observed; cells above the visible field are conservatively
     treated as empty and any plan that would lock cells there is discarded.
     """
@@ -213,13 +217,13 @@ class VisiblePlacementPlanner:
             y=self.spawn_y,
             rotation=0,
             last_rotation=False,
-            actions=(),
         )
         if not self._can_place_state(locked_cells, piece, spawn, width, height):
             return ()
 
+        spawn_key = self._state_key(spawn)
         queue = deque([spawn])
-        seen = {self._state_key(spawn)}
+        parents: dict[_StateKey, _Parent] = {spawn_key: (None, None)}
         placements: dict[
             tuple[frozenset[Cell], int, bool],
             _PlacementResult,
@@ -227,6 +231,7 @@ class VisiblePlacementPlanner:
 
         while queue:
             state = queue.popleft()
+            state_key = self._state_key(state)
             final_y = self._hard_drop_y(
                 locked_cells,
                 piece,
@@ -240,25 +245,27 @@ class VisiblePlacementPlanner:
                 state.x,
                 final_y,
             )
-            if all(y >= 0 for _, y in final_cells):
-                placement = self._placement_result(
+            placement_key = (
+                final_cells,
+                state.rotation % 4,
+                state.last_rotation,
+            )
+            if (
+                placement_key not in placements
+                and all(y >= 0 for _, y in final_cells)
+            ):
+                actions = self._actions_to_state(parents, state_key) + ("hard_drop",)
+                placements[placement_key] = self._placement_result(
                     locked_cells,
                     piece,
                     state,
                     final_y,
                     width,
                     height,
+                    actions,
                 )
-                placement_key = (
-                    final_cells,
-                    placement.rotation % 4,
-                    placement.last_rotation,
-                )
-                previous = placements.get(placement_key)
-                if previous is None or len(placement.actions) < len(previous.actions):
-                    placements[placement_key] = placement
 
-            for next_state in self._successors(
+            for next_state, action in self._successors(
                 locked_cells,
                 piece,
                 state,
@@ -266,9 +273,9 @@ class VisiblePlacementPlanner:
                 height,
             ):
                 key = self._state_key(next_state)
-                if key in seen:
+                if key in parents:
                     continue
-                seen.add(key)
+                parents[key] = (state_key, action)
                 queue.append(next_state)
 
         return tuple(placements.values())
@@ -280,7 +287,7 @@ class VisiblePlacementPlanner:
         state: _SearchState,
         width: int,
         height: int,
-    ) -> tuple[_SearchState, ...]:
+    ) -> tuple[tuple[_SearchState, str], ...]:
         successors = []
 
         for dx, action in ((-1, "move_left"), (1, "move_right")):
@@ -289,10 +296,9 @@ class VisiblePlacementPlanner:
                 state.y,
                 state.rotation,
                 False,
-                state.actions + (action,),
             )
             if self._can_place_state(locked_cells, piece, candidate, width, height):
-                successors.append(candidate)
+                successors.append((candidate, action))
 
         for direction, action in ((1, "rotate_cw"), (-1, "rotate_ccw")):
             candidate = self._rotate_state(
@@ -300,22 +306,20 @@ class VisiblePlacementPlanner:
                 piece,
                 state,
                 direction,
-                action,
                 width,
                 height,
             )
             if candidate is not None:
-                successors.append(candidate)
+                successors.append((candidate, action))
 
         candidate = _SearchState(
             state.x,
             state.y + 1,
             state.rotation,
             state.last_rotation,
-            state.actions + ("soft_drop",),
         )
         if self._can_place_state(locked_cells, piece, candidate, width, height):
-            successors.append(candidate)
+            successors.append((candidate, "soft_drop"))
 
         return tuple(successors)
 
@@ -325,22 +329,38 @@ class VisiblePlacementPlanner:
         piece: PieceType,
         state: _SearchState,
         direction: int,
-        action: str,
         width: int,
         height: int,
     ) -> _SearchState | None:
-        rotation = state.rotation + direction
+        rotation = (state.rotation + direction) % 4
         for dx in (0, -1, 1, -2, 2):
             candidate = _SearchState(
                 state.x + dx,
                 state.y,
                 rotation,
                 True,
-                state.actions + (action,),
             )
             if self._can_place_state(locked_cells, piece, candidate, width, height):
                 return candidate
         return None
+
+    @staticmethod
+    def _actions_to_state(
+        parents: dict[_StateKey, _Parent],
+        state_key: _StateKey,
+    ) -> tuple[str, ...]:
+        actions = []
+        current = state_key
+        while True:
+            parent, action = parents[current]
+            if parent is None:
+                break
+            if action is None:
+                raise RuntimeError("reachable-search parent is missing an action")
+            actions.append(action)
+            current = parent
+        actions.reverse()
+        return tuple(actions)
 
     def _placement_result(
         self,
@@ -350,6 +370,7 @@ class VisiblePlacementPlanner:
         final_y: int,
         width: int,
         height: int,
+        actions: tuple[str, ...],
     ) -> _PlacementResult:
         placed = locked_cells | self._absolute_cells(
             piece,
@@ -363,7 +384,7 @@ class VisiblePlacementPlanner:
             cleared_lines=cleared_lines,
             rotation=state.rotation % 4,
             x=state.x,
-            actions=state.actions + ("hard_drop",),
+            actions=actions,
             last_rotation=state.last_rotation,
         )
 
@@ -376,9 +397,10 @@ class VisiblePlacementPlanner:
         height: int,
     ) -> int:
         y = state.y
+        shape = self._piece_cells(piece, state.rotation)
         while self._can_place(
             locked_cells,
-            self._piece_cells(piece, state.rotation),
+            shape,
             state.x,
             y + 1,
             width,
@@ -440,8 +462,9 @@ class VisiblePlacementPlanner:
         return tuple(placements)
 
     @staticmethod
+    @lru_cache(maxsize=32)
     def _piece_cells(piece: PieceType, rotation: int) -> tuple[Cell, ...]:
-        return tuple(ActivePiece(piece, 0, 0, rotation).cells())
+        return tuple(ActivePiece(piece, 0, 0, rotation % 4).cells())
 
     def _can_place_state(
         self,
@@ -473,7 +496,7 @@ class VisiblePlacementPlanner:
         )
 
     @staticmethod
-    def _state_key(state: _SearchState) -> tuple[int, int, int, bool]:
+    def _state_key(state: _SearchState) -> _StateKey:
         return state.x, state.y, state.rotation % 4, state.last_rotation
 
     def _can_place(
