@@ -87,11 +87,19 @@ The native gameplay/self-play hot path must not require:
 
 Python training integration should use an efficient bridge selected after measurement. Core must stay independent of that bridge implementation.
 
+## Determinism Rule
+
+The C++ runtime defines its own deterministic RNG behavior instead of inheriting Python `random` behavior. The seven-bag currently uses a fixed SplitMix64-based generator and explicit Fisher-Yates shuffle, so a given C++ seed produces the same bag order across supported platforms.
+
+Migration may therefore intentionally change seeded piece sequences from the legacy Python runtime. Once the C++ GameState is authoritative, the C++ sequence is the source of truth.
+
 ## Current Migration State
 
 Implemented in C++:
 
 - base tetromino definitions matching the current Python shapes;
+- active-piece state and normalized quarter-turn rotation;
+- deterministic seven-bag;
 - board dimensions and occupancy;
 - placement validation;
 - piece lock;
@@ -101,11 +109,10 @@ Implemented in C++:
 
 Still authoritative in the legacy Python runtime until migrated:
 
-- bag;
-- active piece;
 - full GameState/tick flow;
-- rotation/movement behavior;
-- combat rules;
+- movement command/state-transition rules;
+- lock timing/progression;
+- combat rules beyond raw board garbage insertion;
 - application/runtime integration;
 - distribution runtime wiring.
 
