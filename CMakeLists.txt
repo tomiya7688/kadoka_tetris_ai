@@ -10,6 +10,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(kadoka_tetris_core
     core/src/active_piece.cpp
     core/src/board.cpp
+    core/src/combat_rules.cpp
+    core/src/game_state.cpp
     core/src/seven_bag.cpp
     core/src/tetromino.cpp
 )
@@ -29,4 +31,10 @@ if(BUILD_TESTING)
     )
     target_link_libraries(kadoka_tetris_core_tests PRIVATE kadoka_tetris_core)
     add_test(NAME kadoka_tetris_core_tests COMMAND kadoka_tetris_core_tests)
+
+    add_executable(kadoka_tetris_game_state_tests
+        tests_cpp/game_state_test.cpp
+    )
+    target_link_libraries(kadoka_tetris_game_state_tests PRIVATE kadoka_tetris_core)
+    add_test(NAME kadoka_tetris_game_state_tests COMMAND kadoka_tetris_game_state_tests)
 endif()
