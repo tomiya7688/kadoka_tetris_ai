@@ -19,10 +19,10 @@ int main() {
 
     {
         const Tetromino piece = make_tetromino(PieceType::I);
-        assert(piece.cells[0] == Offset{0, 1});
-        assert(piece.cells[1] == Offset{1, 1});
-        assert(piece.cells[2] == Offset{2, 1});
-        assert(piece.cells[3] == Offset{3, 1});
+        assert((piece.cells[0] == Offset{0, 1}));
+        assert((piece.cells[1] == Offset{1, 1}));
+        assert((piece.cells[2] == Offset{2, 1}));
+        assert((piece.cells[3] == Offset{3, 1}));
 
         Board board;
         assert(board.can_place(piece, {3, 0}));
