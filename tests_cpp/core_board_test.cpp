@@ -1,6 +1,9 @@
+#include "kadoka/tetris/active_piece.hpp"
 #include "kadoka/tetris/board.hpp"
+#include "kadoka/tetris/seven_bag.hpp"
 #include "kadoka/tetris/tetromino.hpp"
 
+#include <array>
 #include <cassert>
 #include <stdexcept>
 #include <vector>
@@ -32,6 +35,37 @@ int main() {
         }
         assert(!board.can_place(piece, {3, 0}));
         assert(!board.can_place(piece, {-1, 0}));
+    }
+
+    {
+        ActivePiece active{PieceType::I, 3, 0, 1};
+        const auto cells = active.cells();
+        assert((cells[0] == Offset{0, 0}));
+        assert((cells[1] == Offset{0, 1}));
+        assert((cells[2] == Offset{0, 2}));
+        assert((cells[3] == Offset{0, 3}));
+    }
+
+    {
+        SevenBag bag(123);
+        constexpr std::array<PieceType, 7> expected{
+            PieceType::S,
+            PieceType::I,
+            PieceType::J,
+            PieceType::L,
+            PieceType::T,
+            PieceType::Z,
+            PieceType::O,
+        };
+        for (const PieceType kind : expected) {
+            assert(bag.next() == kind);
+        }
+
+        SevenBag first(987654321);
+        SevenBag second(987654321);
+        for (int i = 0; i < 28; ++i) {
+            assert(first.next() == second.next());
+        }
     }
 
     {
