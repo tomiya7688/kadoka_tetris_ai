@@ -73,7 +73,7 @@ C++ Core transition
 canonical next state
 ```
 
-No backend may directly mutate canonical state.
+No backend may directly mutate canonical state. The public C++ `GameState` API therefore exposes the board as a const view; movement, rotation, HOLD, garbage and locking go through GameState methods.
 
 ## Performance Rule
 
@@ -102,19 +102,28 @@ Implemented in C++:
 - deterministic seven-bag;
 - board dimensions and occupancy;
 - placement validation;
-- piece lock;
-- full-row clear;
+- piece lock and full-row clear;
 - garbage insertion and overflow detection;
+- `GameState` spawn and next queue;
+- horizontal/vertical movement;
+- rotation with the current legacy kick order `-1, +1, -2, +2`;
+- hard drop and lock progression;
+- one-HOLD-per-piece behavior and HOLD swap;
+- lock counters, line counters and combo state;
+- normalized `LockEvent` with B2B/perfect-clear/T-Spin fields;
+- current three-corner T-Spin placement rule;
 - Linux/Windows CMake build and CTest integration.
 
-Still authoritative in the legacy Python runtime until migrated:
+Still authoritative in the legacy Python runtime until migrated/integrated:
 
-- full GameState/tick flow;
-- movement command/state-transition rules;
-- lock timing/progression;
-- combat rules beyond raw board garbage insertion;
+- application tick/semantic-command routing;
+- complete versus combat coordination/attack dispatch;
 - application/runtime integration;
+- observation generation from the C++ state;
+- GUI/runtime bridge;
 - distribution runtime wiring.
+
+The Python `src/tetris/core/` implementation remains only as a migration reference while these callers are moved to C++.
 
 ## Validation
 
@@ -126,4 +135,4 @@ cmake --build build-cpp --config Release
 ctest --test-dir build-cpp -C Release --output-on-failure
 ```
 
-During migration, relevant existing Python tests remain useful as behavior references. Passing Python tests alone does not prove the new C++ authoritative path.
+CI executes the C++ build and CTest on Linux and Windows before the legacy Python/runtime checks. During migration, relevant existing Python tests remain useful as behavior references. Passing Python tests alone does not prove the new C++ authoritative path.
