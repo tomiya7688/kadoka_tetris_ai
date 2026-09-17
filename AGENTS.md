@@ -6,15 +6,20 @@
 今回の作業箇所に関する既存変更も確認し、ユーザーの変更を上書き・削除しない。
 
 - Goal / Required / Acceptance と対象境界・検証方法が揃ったら広い探索を止める。
+- **authoritative gameplay core / runtime はC++で実装する。** 新しいゲームルールをPython coreだけへ追加しない。
+- **PythonはAI学習・dataset生成・評価・実験・変換・研究toolingを主責務とする。** C++ CoreからPython学習コードへ逆依存しない。
+- 既存 `src/tetris/core/` はC++移行中の挙動参照であり、移行完了後のcanonical state ownerにしない。
 - 1クラス1ファイル、1クラス1責務、1関数1処理。
 - GUI・コア・プレイAIを分離し、人間とAIは同じ意味的コマンドで操作する。
-- AI出力は提案であり、canonical stateを直接書き換えない。core/applicationの権威ある検証経路を通す。
+- AI出力は提案であり、canonical stateを直接書き換えない。C++ Core/Runtimeの権威ある検証経路を通す。
 - gameplay/runtimeからbenchmark・training・dataset analysisへ逆依存しない。
 - ツモ制約を守る。AIに未公開の将来ツモや内部乱数状態を渡さない。
 - 軽い設計は docs/設計書.md、詳細は docs/機能名/機能説明書.md に書く。
 - 表はMarkdown、図はMermaidを使う。
 - 「次へ」は予定とフィードバックを確認し、次の小さな検証可能な項目を進める。
 - CI/build/release、AI共通I/F、Runtime/tooling境界、benchmark、model/package、checkerを大きく変更する前に `docs/sibling-project-alignment.md` を見て兄弟repoの現行方式を短く確認する。盲目的にはコピーしない。
+- C++ Core/Runtime変更はCMake build + CTestを基本検証とし、必要に応じて既存Python testsを移行参照として使う。
+- Python学習/tooling変更はcompileall / Ruff / unittestを基本検証とする。
 - 機能を追加する際は作業ブランチで実装・テストし、mainへの反映とGitHub更新を行う。
   初回はGitの状態・remote・公開先を確認する。公開先不明なら推測でリポジトリを作らない。
   無関係なファイルをコミットしない。強制pushや既存変更の破棄はしない。
@@ -22,7 +27,7 @@
 - 配布ビルドは `build.bat` などの単一入口、または同等のビルダー1コマンドで生成できるようにする。複数の手作業やIDE固有操作を必須にしない。
 - 配布対象は、ユーザー側にPython・pip・IDE等の開発環境を要求せず、**生成された配布用ディレクトリ一式をそのままZIP化して第三者へ渡せる状態**を目標とする。ZIPファイル自体の自動生成は必須ではない。
 - 実装変更後は、可能な限り通常の自動テストに加えて配布ビルドを生成し、少なくとも起動確認・必須ファイル存在確認・設定/UserData初期化などの簡易スモークテストを実行する。
-- Codexは作業完了前に、原則として「checker/targeted tests → 通常テスト → 配布に影響する場合は配布ビルド → 配布物スモークテスト」の順で検証する。
+- Codexは作業完了前に、原則として「checker/targeted tests → C++ Core CTest → Python通常テスト → 配布に影響する場合は配布ビルド → 配布物スモークテスト」の順で検証する。
 - 新しい依存関係やアセット、パス処理、設定方式を追加するときは、開発環境だけでなく配布ビルドでも動作するかを確認する。絶対パスやローカル環境固有設定への依存を作らない。
 - ランダム性を含むAI改善・benchmarkは、同じseed群・同じ条件・bounded runtimeで比較する。
 - 完了した項目は開発予定から削除する。部分完了は未完了部分を残す。
