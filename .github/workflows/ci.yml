@@ -1,4 +1,4 @@
-name: Python CI
+name: Core + Python CI
 
 on:
   pull_request:
@@ -10,13 +10,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: python-ci-${{ github.workflow }}-${{ github.ref }}
+  group: core-python-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       PYTHONPATH: ${{ github.workspace }}/src
 
@@ -40,11 +40,20 @@ jobs:
       - name: Validate family model metadata
         run: python tools/family_metadata/script/validate_metadata.py --game tetris models/examples/family_metadata.json
 
+      - name: Configure C++ core
+        run: cmake -S . -B build-cpp -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build C++ core
+        run: cmake --build build-cpp --config Release --parallel 2
+
+      - name: Test C++ core
+        run: ctest --test-dir build-cpp -C Release --output-on-failure
+
       - name: Compile Python sources
         run: python -m compileall -q src tests tools
 
       - name: Run correctness lint
         run: python -m ruff check --output-format=github src tests tools
 
-      - name: Run unit tests
+      - name: Run Python unit tests
         run: python -m unittest discover -s tests -v
