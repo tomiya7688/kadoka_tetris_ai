@@ -6,87 +6,93 @@
 
 盤面、ツモ、移動、回転、ロック、消去、ゲームオーバー等。
 
-- Source: `src/tetris/core/`
-- Tests: `tests/test_core.py`, `tests/test_game_state.py` と対象機能の近接テスト
-- Docs: `docs/コーディングルール.md`、必要時のみ詳細設計
-- Validation: 対象 unittest -> core 関連テスト -> shared API変更時のみ全体
+- Authoritative Source: `core/include/`, `core/src/`
+- C++ Tests: `tests_cpp/`
+- Migration reference only: `src/tetris/core/`, `tests/test_core.py`, `tests/test_game_state.py`
+- Docs: `docs/cpp-core-migration.md`, `docs/コーディングルール.md`
+- Validation: 対象CTest -> C++ core全体 -> parityに関係するPython test
+- Rule: 新しいゲームルールをPython coreだけへ追加しない
 
 ## commands-runtime
 
 人間/AI共通の意味的コマンド、対戦進行、アプリケーション調停。
 
-- Source: `src/tetris/application/`, `src/tetris/adapters/`
-- Tests: `tests/test_commands.py`, `tests/test_adapters.py`, 対戦関連テスト
-- Invariant: 人間とAIは同じ権威ある状態遷移を通る
+- Target Source: C++ Runtime（core移行に合わせて追加）
+- Migration source: `src/tetris/application/`, `src/tetris/adapters/`
+- Tests: C++ runtime testsを優先し、既存Python testsを移行参照にする
+- Invariant: 人間とAIは同じ権威あるC++状態遷移を通る
 - Validation: deterministic input/seedを優先
 
 ## ai-runtime
 
 AI backend、proposal、外部process/script transport、authoritative command境界。
 
-- Source: `src/tetris/application/ai_backend.py`, `src/tetris/application/ai_runner.py`, `src/tetris/application/command.py`, `src/tetris/application/ai_match.py`
-- Tests: `tests/test_ai_backend_runtime.py`, `tests/test_ai_match.py`, `tests/test_commands.py`
+- Target: C++ Runtime backend boundary
+- Python role: 学習backend、dataset、評価・実験用adapter
+- Current migration source: `src/tetris/application/ai_backend.py`, `src/tetris/application/ai_runner.py`, `src/tetris/application/command.py`, `src/tetris/application/ai_match.py`
+- Tests: runtime境界のC++ testsを追加しつつ、`tests/test_ai_backend_runtime.py`, `tests/test_ai_match.py`, `tests/test_commands.py` を挙動参照にする
 - Docs: `docs/ai-runtime-backend.md`, `docs/sibling-project-alignment.md`
-- Invariant: AIはproposalのみ返し、状態遷移はCommand/TickEngineが所有する
-- Performance: native backendへprocess/serialization overheadを持ち込まない
-- Validation: targeted runtime tests -> AI match -> shared command変更時のみ全体
+- Invariant: AIはproposalのみ返し、状態遷移はC++ Runtime/Coreが所有する
+- Performance: native backendへPython/process/serialization overheadを持ち込まない
 
-## ai-cpu
+## ai-learning
 
-AI判断、CPU評価、候補生成、対戦AI。
+AI学習、dataset生成、weight sweep、研究実験。
 
-- Source: `src/tetris/ai/`, `src/tetris/cpu/`
-- Tests: `tests/test_ai.py`, `tests/test_ai_match.py`, `tests/test_cpu_benchmark*.py`, `tests/test_cpu_weight_sweep.py`
-- Docs: `docs/CPUベンチマーク.md`, `docs/標準CPU評価重み.md` は必要時のみ
-- Validation: 同一seed・同一条件で比較。AIへ未公開情報を渡さない
+- Source: `src/tetris/ai/`, `src/tetris/cpu/`, `src/tetris/benchmark/` と今後のtraining modules
+- Language: Pythonを標準とする
+- Runtime access: C++ Runtimeのobservation/action bridge経由
+- Invariant: Python学習コードがcanonical game stateを独自実装しない
+- Validation: fixed seed / fixed config / bounded games
 
 ## combat
 
 攻撃、garbage、combo、B2B、T-Spin等。
 
-- Source: core/application内のcombat関連実装
-- Tests: `tests/test_attack.py`, `tests/test_combat_events.py`, `tests/test_garbage.py`
-- Validation: 小さい決定的局面を優先
+- Target Source: C++ Core/Runtime
+- Migration reference: Python core/application内のcombat関連実装
+- Tests: C++ deterministic combat tests + `tests/test_attack.py`, `tests/test_combat_events.py`, `tests/test_garbage.py` を移行参照
 
 ## observation
 
 AIへ渡す観測、可視化用観測。
 
-- Source: `src/tetris/observation/` と `src/tetris/application/ai_backend.py::public_observation`
-- Tests: observation/AI関連テスト
-- Docs: `docs/対戦UIと可視Observation.md`, `docs/ai-runtime-backend.md`
+- Target producer: C++ Runtime
+- Python consumer/tooling: `src/tetris/observation/`
+- Existing reference: `src/tetris/application/ai_backend.py::public_observation`
 - Invariant: hidden future pieces / internal RNG stateを漏らさない
 
 ## benchmark
 
 CPU評価、weight sweep、計測。
 
-- Source: `src/tetris/benchmark/`, 関連CPU実装
-- Tests: benchmark関連テスト
+- Runtime benchmark: C++
+- 学習・集計・可視化: Python
+- Source: `src/tetris/benchmark/`, 関連AI実装
 - Validation: fixed seeds / fixed config / bounded games。同一条件以外の数値を直接比較しない
 
 ## distribution
 
-PyInstaller、runtime path、設定/UserData、配布物。
+C++ Runtime、Python tooling/UI、PyInstallerまたは後続packaging、runtime path、設定/UserData、配布物。
 
-- Source: `build.bat`, `tools/distribution/`, `src/tetris/runtime_paths.py`, `requirements-build.txt`
-- Tests: source tests + `tools/distribution/smoke_test.py`
+- Source: `CMakeLists.txt`, `build.bat`, `tools/distribution/`, `src/tetris/runtime_paths.py`, `requirements-build.txt`
 - CI: `.github/workflows/windows-build.yml`
-- Validation: source test成功だけで配布成功とみなさず、生成artifactを直接smokeする
+- Validation: C++ build/test + source tests + 生成artifact smoke
 
 ## build-policy
 
-CI、ruff、checker、依存境界、開発ルール。
+CI、ruff、CMake、checker、依存境界、開発ルール。
 
-- Source: `.github/workflows/`, `pyproject.toml`, `tools/kadoka_rule_checker.py`, `AGENTS.md`
-- Docs: `docs/コーディングルール.md`, `docs/sibling-project-alignment.md`
-- Validation: checker -> compileall -> ruff -> unittest
+- Source: `.github/workflows/`, `CMakeLists.txt`, `pyproject.toml`, `tools/kadoka_rule_checker.py`, `AGENTS.md`
+- Docs: `docs/コーディングルール.md`, `docs/sibling-project-alignment.md`, `docs/cpp-core-migration.md`
+- Validation: checker -> C++ build/CTest -> compileall -> ruff -> unittest
 
 ## Broadening Rules
 
 次の場合は全体検証へ広げます。
 
 - core/public command contract変更
+- C++/Python bridge変更
 - observation contract変更
 - dependency/build/package変更
 - AIとhuman共通状態遷移変更
@@ -96,7 +102,7 @@ CI、ruff、checker、依存境界、開発ルール。
 
 ## Ignore Normally
 
-- `.build-venv/`, `build/`, `dist/`
+- `.build-venv/`, `build/`, `build-cpp/`, `dist/`
 - generated benchmark/dataset outputs
 - 大きな成功ログ
 - 無関係なfeedback/history/docs
