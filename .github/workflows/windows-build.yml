@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build:
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - name: Check out repository
@@ -29,7 +29,19 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-build.txt
 
-      - name: Build and smoke-test distribution
+      - name: Configure C++ core
+        shell: cmd
+        run: cmake -S . -B build-cpp -DBUILD_TESTING=ON
+
+      - name: Build C++ core
+        shell: cmd
+        run: cmake --build build-cpp --config Release
+
+      - name: Test C++ core
+        shell: cmd
+        run: ctest --test-dir build-cpp -C Release --output-on-failure
+
+      - name: Build and smoke-test Python distribution
         shell: cmd
         run: build.bat
 
