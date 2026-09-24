@@ -6,8 +6,8 @@ from tetris.observation import PlayerObservation
 
 from .standard_cpu_profile import StandardCpuProfile
 from .visible_board_evaluator import VisibleBoardEvaluator, VisibleBoardWeights
+from .visible_perfect_clear_ready_planner import VisiblePerfectClearReadyPlanner
 from .visible_placement_planner import VisiblePlacementPlanner
-from .visible_t_spin_ready_planner import VisibleTSpinReadyPlanner
 
 
 class StandardCpuStrategy:
@@ -22,12 +22,13 @@ class StandardCpuStrategy:
         if planner is not None and weights is not None:
             raise ValueError("planner and weights cannot both be supplied")
         self.profile = profile
-        self.planner = planner or VisibleTSpinReadyPlanner(
+        self.planner = planner or VisiblePerfectClearReadyPlanner(
             evaluator=VisibleBoardEvaluator(weights),
             search_depth=profile.search_depth,
             lookahead_discount=profile.lookahead_discount,
             attack_weight=2.0,
             readiness_weight=0.75,
+            perfect_clear_readiness_weight=0.5,
         )
         self._actions: deque[str] = deque()
         self._cooldown = 0
