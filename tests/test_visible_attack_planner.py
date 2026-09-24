@@ -14,6 +14,8 @@ from tetris.cpu import (
     VisibleAttackPlacementPlanner,
     VisibleBoardEvaluator,
     VisibleBoardWeights,
+    VisiblePerfectClearReadinessEvaluator,
+    VisiblePerfectClearReadyPlanner,
     VisibleTSpinReadinessEvaluator,
     VisibleTSpinReadyPlanner,
     standard_cpu_profile,
@@ -178,12 +180,70 @@ class VisibleAttackPlannerTests(unittest.TestCase):
 
         self.assertEqual(planner.evaluator.score(locked, 4, 4), 1.5)
 
-    def test_standard_cpu_uses_t_spin_ready_planner_by_default(self):
+    def test_perfect_clear_readiness_detects_bounded_geometric_completions(self):
+        one_piece = frozenset(
+            (x, y)
+            for y in (18, 19)
+            for x in range(10)
+            if x not in (4, 5)
+        )
+        two_pieces = frozenset(
+            (x, y)
+            for y in (18, 19)
+            for x in range(10)
+            if x not in (2, 3, 6, 7)
+        )
+        impossible_one_piece = frozenset(
+            (x, y)
+            for y in (18, 19)
+            for x in range(10)
+            if (x, y) not in {(0, 18), (2, 18), (4, 19), (6, 19)}
+        )
+        readiness = VisiblePerfectClearReadinessEvaluator()
+
+        self.assertEqual(readiness.score(one_piece, width=10, height=20), 3)
+        self.assertEqual(readiness.score(two_pieces, width=10, height=20), 2)
+        self.assertEqual(
+            readiness.score(impossible_one_piece, width=10, height=20),
+            0,
+        )
+        self.assertEqual(readiness.score(frozenset(), width=10, height=20), 0)
+
+    def test_perfect_clear_readiness_weight_must_be_finite_and_nonnegative(self):
+        for value in (-1.0, float("inf"), float("nan")):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "perfect_clear_readiness_weight",
+                ):
+                    VisiblePerfectClearReadyPlanner(
+                        perfect_clear_readiness_weight=value
+                    )
+
+    def test_perfect_clear_readiness_is_added_to_board_score(self):
+        locked = frozenset(
+            (x, y)
+            for y in (18, 19)
+            for x in range(10)
+            if x not in (4, 5)
+        )
+        planner = VisiblePerfectClearReadyPlanner(
+            evaluator=_zero_board_evaluator(),
+            readiness_weight=0.0,
+            perfect_clear_readiness_weight=0.5,
+            attack_weight=0.0,
+        )
+
+        self.assertEqual(planner.evaluator.score(locked, 10, 20), 1.5)
+
+    def test_standard_cpu_uses_perfect_clear_ready_planner_by_default(self):
         strategy = StandardCpuStrategy(standard_cpu_profile("easy"))
+        self.assertIsInstance(strategy.planner, VisiblePerfectClearReadyPlanner)
         self.assertIsInstance(strategy.planner, VisibleTSpinReadyPlanner)
         self.assertIsInstance(strategy.planner, VisibleAttackPlacementPlanner)
         self.assertEqual(strategy.planner.attack_weight, 2.0)
         self.assertEqual(strategy.planner.readiness_weight, 0.75)
+        self.assertEqual(strategy.planner.perfect_clear_readiness_weight, 0.5)
 
     def test_versus_modes_change_attack_priority(self):
         strategy = VersusStandardCpuStrategy(standard_cpu_profile("normal"))
@@ -204,6 +264,16 @@ class VisibleAttackPlannerTests(unittest.TestCase):
         pressure = strategy._t_spin_readiness_weight_for_mode("pressure")
 
         self.assertEqual((defense, neutral, pressure), (0.25, 0.75, 1.25))
+
+
+    def test_versus_modes_change_perfect_clear_readiness_priority(self):
+        strategy = VersusStandardCpuStrategy(standard_cpu_profile("normal"))
+
+        defense = strategy._perfect_clear_readiness_weight_for_mode("defense")
+        neutral = strategy._perfect_clear_readiness_weight_for_mode("neutral")
+        pressure = strategy._perfect_clear_readiness_weight_for_mode("pressure")
+
+        self.assertEqual((defense, neutral, pressure), (0.0, 0.5, 1.0))
 
 
 if __name__ == "__main__":
