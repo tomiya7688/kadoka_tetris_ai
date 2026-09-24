@@ -39,7 +39,7 @@ InputRouter / TickEngine
 
 ## 到達可能配置と火力評価
 
-標準CPU v4は `VisibleTSpinReadyPlanner` を使う。
+標準CPU v5は `VisiblePerfectClearReadyPlanner` を使う。
 
 現在ミノについては、最終座標だけを列挙せず、左右移動・回転・soft dropを使う到達可能な操作経路を探索する。
 そのため、単純hard dropでは届かないtuckや、最後の成功操作を回転にする配置も候補にできる。
@@ -85,6 +85,25 @@ readinessとして数えるのは、仮にTを入れた場合に以下をすべ�
 
 したがって、危険時はT-Spin穴の保存より生存・掘りを優先し、相手へ圧力を掛けたい局面では将来火力形をより残しやすくする。
 
+### Perfect Clear readiness
+
+v5では、即時に完成するPerfect Clearだけでなく、その数手前の形も可視盤面だけで軽く評価する。
+`VisiblePerfectClearReadinessEvaluator` は、現在のlocked cellsが盤面下端の連続した行だけに収まり、最大3個の仮想テトリミノでその領域を埋め切れるかを調べる。
+
+この仮想探索ではhidden bagやRNGを一切参照せず、未来のミノ種類を「来る」と予測もしない。
+あくまでPCへ近い幾何形状を壊しにくくするためのreadinessであり、実際の表示NEXTが探索深度へ入った後は通常の配置探索とPerfect Clear火力評価に判断を引き継ぐ。
+
+誤検出を抑えるため、仮想配置の途中で行が完成してしまう候補は除外する。
+readinessは完成までの距離に応じて3 / 2 / 1点とし、標準CPUでは重み `0.5` を掛ける。
+
+対戦モードでは以下とする。
+
+- defense: `0.0`
+- neutral: `0.5`
+- pressure: `1.0`
+
+危険時はPC形の保存を捨てて生存を優先し、余裕がある局面ほど大火力候補としてPC形を残しやすくする。
+
 ## 初期モード
 
 対戦用標準CPUは3モードを持つ。
@@ -128,10 +147,13 @@ Garbageを受ける前後で掘りやすい盤面を維持することを狙う�
 T-Spinは、現在ミノ・探索深度内の表示NEXT・探索深度外へ残すreadinessの3段階で扱うようになった。
 ただしreadinessはテンプレート認識ではなく幾何ヒューリスティックなので、DT砲など特定の継続テンプレートや、数手先の入口経路まで保証するものではない。
 
+Perfect Clearも、即時完成と最大3ミノ先の幾何readinessまでは扱う。
+ただしreadinessは実際のfuture bagを仮定せず、重力・kickを含む実行順まで保証するPC opener/template探索ではない。4ミノ以上先の構築も対象外とする。
+
 まだ以下は専用探索していない。
 
 - DT砲などのT-Spin継続テンプレート認識
-- PC構築
+- PC opener/templateと実piece列を結び付ける専用構築探索
 - B2B/Comboを可視UIから扱う設計
 - 相手への実際の到達火力を含めたminimax
 - Garbage穴位置を使う将来downstack予測
