@@ -1,6 +1,7 @@
 """Lightweight visible-only Perfect Clear readiness evaluation."""
 
 from functools import lru_cache
+from itertools import permutations
 
 from tetris.core import ActivePiece, PieceType
 from tetris.observation import Cell
@@ -100,43 +101,78 @@ class VisiblePerfectClearReadinessEvaluator:
     ) -> bool:
         shapes = self._tetromino_shapes()
 
-        @lru_cache(maxsize=None)
-        def search(remaining: frozenset[Cell], steps: int) -> bool:
+        def search(
+            remaining: frozenset[Cell],
+            chosen: tuple[frozenset[Cell], ...],
+        ) -> bool:
             if not remaining:
-                return steps == 0
-            if steps <= 0 or len(remaining) != steps * 4:
+                return (
+                    len(chosen) == pieces
+                    and self._has_safe_placement_order(
+                        initial_cells,
+                        chosen,
+                        width,
+                        top,
+                        height,
+                    )
+                )
+            if len(chosen) >= pieces:
                 return False
 
             for placement in self._candidate_placements(remaining, shapes):
-                next_remaining = remaining - placement
-                if steps > 1:
-                    filled = initial_cells | (missing - next_remaining)
-                    if self._has_full_row(filled, width, top, height):
-                        continue
-                if search(next_remaining, steps - 1):
+                if search(remaining - placement, chosen + (placement,)):
                     return True
             return False
 
-        return search(missing, pieces)
+        return search(missing, ())
 
     @staticmethod
     def _candidate_placements(
         remaining: frozenset[Cell],
         shapes: tuple[tuple[Cell, ...], ...],
     ) -> tuple[frozenset[Cell], ...]:
+        if not remaining:
+            return ()
+
+        anchor_x, anchor_y = min(remaining, key=lambda cell: (cell[1], cell[0]))
         placements: set[frozenset[Cell]] = set()
-        for anchor_x, anchor_y in remaining:
-            for shape in shapes:
-                for local_x, local_y in shape:
-                    origin_x = anchor_x - local_x
-                    origin_y = anchor_y - local_y
-                    placement = frozenset(
-                        (origin_x + x, origin_y + y)
-                        for x, y in shape
-                    )
-                    if placement.issubset(remaining):
-                        placements.add(placement)
+        for shape in shapes:
+            for local_x, local_y in shape:
+                origin_x = anchor_x - local_x
+                origin_y = anchor_y - local_y
+                placement = frozenset(
+                    (origin_x + x, origin_y + y)
+                    for x, y in shape
+                )
+                if placement.issubset(remaining):
+                    placements.add(placement)
         return tuple(placements)
+
+    @classmethod
+    def _has_safe_placement_order(
+        cls,
+        initial_cells: frozenset[Cell],
+        placements: tuple[frozenset[Cell], ...],
+        width: int,
+        top: int,
+        height: int,
+    ) -> bool:
+        for order in permutations(placements):
+            filled = set(initial_cells)
+            safe = True
+            for index, placement in enumerate(order):
+                filled.update(placement)
+                if index < len(order) - 1 and cls._has_full_row(
+                    frozenset(filled),
+                    width,
+                    top,
+                    height,
+                ):
+                    safe = False
+                    break
+            if safe:
+                return True
+        return False
 
     @staticmethod
     def _has_full_row(
