@@ -113,11 +113,12 @@ Implemented in C++:
 - normalized `LockEvent` with B2B/perfect-clear/T-Spin fields;
 - current three-corner T-Spin placement rule;
 - Linux/Windows CMake build and CTest integration.
+- Initial C++ `HeadlessRuntime` with semantic command validation, deterministic tick ordering, per-player GameState ownership, and headless CTest.
 
 Still authoritative in the legacy Python runtime until migrated/integrated:
 
-- application tick/semantic-command routing;
 - complete versus combat coordination/attack dispatch;
+- gravity/lock-delay progression and C++ AI backend boundary;
 - application/runtime integration;
 - observation generation from the C++ state;
 - GUI/runtime bridge;
