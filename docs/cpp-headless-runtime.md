@@ -11,4 +11,3 @@
 ## 今回の境界
 
 これは単独盤面のheadless runtimeと共有コマンド経路の初期実装である。重力・lock delay、対戦combat調停、AIBackend transport、Python bridge、JSONL transportは含めない。後続工程は同じC++ state transition入口へ接続し、C++ CoreへのPython依存を追加しない。
-
