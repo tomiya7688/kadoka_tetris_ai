@@ -25,6 +25,7 @@ target_compile_features(kadoka_tetris_core PUBLIC cxx_std_20)
 
 add_library(kadoka_tetris_runtime
     runtime/src/headless_runtime.cpp
+    runtime/src/observation.cpp
 )
 
 target_include_directories(kadoka_tetris_runtime
@@ -56,4 +57,10 @@ if(BUILD_TESTING)
     )
     target_link_libraries(kadoka_tetris_headless_runtime_tests PRIVATE kadoka_tetris_runtime)
     add_test(NAME kadoka_tetris_headless_runtime_tests COMMAND kadoka_tetris_headless_runtime_tests)
+
+    add_executable(kadoka_tetris_observation_tests
+        tests_cpp/observation_test.cpp
+    )
+    target_link_libraries(kadoka_tetris_observation_tests PRIVATE kadoka_tetris_runtime)
+    add_test(NAME kadoka_tetris_observation_tests COMMAND kadoka_tetris_observation_tests)
 endif()
