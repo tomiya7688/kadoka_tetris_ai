@@ -23,6 +23,19 @@ target_include_directories(kadoka_tetris_core
 
 target_compile_features(kadoka_tetris_core PUBLIC cxx_std_20)
 
+add_library(kadoka_tetris_runtime
+    runtime/src/headless_runtime.cpp
+)
+
+target_include_directories(kadoka_tetris_runtime
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/runtime/include
+)
+
+target_link_libraries(kadoka_tetris_runtime PUBLIC kadoka_tetris_core)
+
+target_compile_features(kadoka_tetris_runtime PUBLIC cxx_std_20)
+
 include(CTest)
 
 if(BUILD_TESTING)
@@ -37,4 +50,10 @@ if(BUILD_TESTING)
     )
     target_link_libraries(kadoka_tetris_game_state_tests PRIVATE kadoka_tetris_core)
     add_test(NAME kadoka_tetris_game_state_tests COMMAND kadoka_tetris_game_state_tests)
+
+    add_executable(kadoka_tetris_headless_runtime_tests
+        tests_cpp/headless_runtime_test.cpp
+    )
+    target_link_libraries(kadoka_tetris_headless_runtime_tests PRIVATE kadoka_tetris_runtime)
+    add_test(NAME kadoka_tetris_headless_runtime_tests COMMAND kadoka_tetris_headless_runtime_tests)
 endif()
