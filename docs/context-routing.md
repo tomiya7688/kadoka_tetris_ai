@@ -57,8 +57,9 @@ AI学習、dataset生成、weight sweep、研究実験。
 
 AIへ渡す観測、可視化用観測。
 
-- Target producer: C++ Runtime
+- Target producer: `runtime/src/observation.cpp` (C++ Runtime)
 - Python consumer/tooling: `src/tetris/observation/`
+- C++ API: `runtime/include/kadoka/tetris/runtime/observation.hpp`
 - Existing reference: `src/tetris/application/ai_backend.py::public_observation`
 - Invariant: hidden future pieces / internal RNG stateを漏らさない
 

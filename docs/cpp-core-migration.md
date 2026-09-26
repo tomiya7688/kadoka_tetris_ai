@@ -114,13 +114,14 @@ Implemented in C++:
 - current three-corner T-Spin placement rule;
 - Linux/Windows CMake build and CTest integration.
 - Initial C++ `HeadlessRuntime` with semantic command validation, deterministic tick ordering, per-player GameState ownership, and headless CTest.
+- C++ player-visible observation snapshot with visible-coordinate cells and no bag/RNG references.
 
 Still authoritative in the legacy Python runtime until migrated/integrated:
 
 - complete versus combat coordination/attack dispatch;
 - gravity/lock-delay progression and C++ AI backend boundary;
 - application/runtime integration;
-- observation generation from the C++ state;
+- observation integration into the AI/backend and Python bridge;
 - GUI/runtime bridge;
 - distribution runtime wiring.
 

@@ -7,3 +7,6 @@
 
 ## Unreleased - 2026-09-25
 - C++ Core上で意味的コマンドを固定tick処理するheadless runtime初期版を追加。
+
+## Unreleased - 2026-09-26
+- C++ Runtimeからhidden rowsとbag/RNGを除いたplayer-visible observationを生成。
