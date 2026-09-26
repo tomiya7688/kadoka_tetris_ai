@@ -6,4 +6,5 @@
 - GitHub Issue確認、ブランチ作成、PRはGit未初期化のため未実施。
 
 ## Unreleased - 2026-09-25
+- 可視NEXT内の配置候補をseed付きロールアウトで比較するMonte Carlo plannerを追加。
 - C++ Core上で意味的コマンドを固定tick処理するheadless runtime初期版を追加。
