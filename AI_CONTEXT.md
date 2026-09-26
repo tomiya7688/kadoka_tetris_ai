@@ -31,6 +31,7 @@ The legacy Python core under `src/tetris/core/` is a migration reference until e
 - Current task/planning: `docs/開発予定.md` and explicit user/GitHub task when relevant
 - C++ Core: `core/`
 - C++ Headless Runtime: `runtime/`
+- C++ visible Observation: `runtime/include/kadoka/tetris/runtime/observation.hpp`
 - Python learning/tooling/runtime adapters during migration: `src/tetris/`
 - Tests: `tests_cpp/`, `tests/`
 
