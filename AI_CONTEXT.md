@@ -26,20 +26,20 @@ The legacy Python core under `src/tetris/core/` is a migration reference until e
 - Repository working rules: `AGENTS.md`
 - Coding rules: `docs/コーディングルール.md`
 - C++ migration policy: `docs/cpp-core-migration.md`
-- Context/validation routing: `docs/context-routing.md`
+- Context/validation routing and project map: `docs/context-routing.md`
 - Sibling-project policy: `docs/sibling-project-alignment.md`
-- Current task/planning: `docs/開発予定.md` and explicit user/GitHub task when relevant
+- Current task/planning: `docs/開発予定.md` and the relevant GitHub Issue or explicit user task
 - C++ Core: `core/`
 - Python learning/tooling/runtime adapters during migration: `src/tetris/`
 - Tests: `tests_cpp/`, `tests/`
 
 ## Start Here
 
-1. Read the current task and this file.
-2. Select a route in `docs/context-routing.md`.
-3. Read target source and matching tests.
-4. Open detailed design/feedback docs only when needed by that route.
-5. Stop broad exploration when Goal / Required / Acceptance and validation are clear.
+1. Identify the task's Goal, Required behavior, Acceptance evidence, and affected boundary.
+2. Check `git status`, the compact diff/stat, and recent/remote changes before opening files.
+3. Search the project map in `docs/context-routing.md`; inspect only the matching source, tests, and required policy.
+4. Use static checks and grouped routine commands where they can answer a question without loading large files or logs.
+5. Stop exploring when the task scope, acceptance evidence, and validation are clear; broaden only for a shared contract, unknown impact, or failed evidence.
 
 ## Important Invariants
 
@@ -58,7 +58,7 @@ The legacy Python core under `src/tetris/core/` is a migration reference until e
 - `.build-venv/`, `build/`, `build-cpp/`, `dist/`
 - generated datasets and large benchmark logs
 - unrelated feedback/history/docs
-- successful CI/build logs after the pass/fail result is known
+- successful CI/build logs after the pass/fail result is known; retain a short result and command instead
 
 ## Validation
 
@@ -75,13 +75,12 @@ python -m unittest discover -s tests -v
 build.bat
 ```
 
-Use targeted tests first for local logic changes. Run distribution build/smoke when packaging, dependencies, paths, settings or startup behavior are affected.
+Use targeted tests first for local logic changes. Run distribution build/smoke when packaging, dependencies, paths, settings or startup behavior are affected. Expand validation according to `docs/context-routing.md`, not by default.
 
 ## Working Rules
 
-- Search first, read second.
+- Search first, read second; indexes guide retrieval but do not replace source-of-truth code, tests, or specifications.
 - Do not mix unrelated refactors into a task.
 - Prefer fixed seeds/inputs for AI comparisons.
 - During C++ migration, compare behavior against the existing Python implementation where practical.
-- Summaries/indexes do not replace source-of-truth code/specs.
 - Report relevant unverified areas explicitly.
