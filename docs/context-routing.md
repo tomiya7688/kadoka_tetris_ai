@@ -1,6 +1,6 @@
 # Context Routing
 
-変更内容から、最初に読む source / tests / docs / validation を絞るための地図です。全資料を先に読まず、共有契約へ影響するときだけ範囲を広げます。
+変更内容から、最初に読む source / tests / docs / validation を絞るための地図です。全資料を先に読まず、共有契約へ影響するときだけ範囲を広げます。この文書がサブシステム索引（project map）を兼ねます。索引の重複を避け、各routeには入口と責務だけを書き、仕様の正本は各設計文書・コード・テストに置きます。
 
 ## core
 
@@ -99,6 +99,17 @@ CI、ruff、CMake、checker、依存境界、開発ルール。
 - 影響範囲が不明
 
 それ以外はtargeted validationで十分なら探索・検証を止めます。
+
+## Bounded Context Collection
+
+- タスクごとに Goal / Required / Acceptance evidence / affected boundary を先に決める。
+- `git status` と remote delta、変更ファイル一覧・diff statを先に確認し、既存変更を守る。
+- routeにあるsource・matching tests・必要なpolicyだけを検索して読む。巨大文書やログは全文ではなく関連範囲・要約・検索結果を使う。
+- 繰り返す静的確認はcheckerや一括コマンドへ寄せる。ログは判定と必要な失敗箇所だけ残す。
+- Acceptance evidenceが揃ったら探索を止める。別routeへ広げるのは共有契約、未知の影響、失敗の原因調査が必要な時だけ。
+- ルーティング情報は索引であり、仕様や実装の正本を置き換えない。
+
+基本原則（静的解析・繰り返し操作の集約・必要箇所だけ読む）は [ai-context-reducer](https://github.com/tomiya7688/ai-context-reducer) を参考に採用し、外部ツールへの依存は追加しません。
 
 ## Ignore Normally
 
