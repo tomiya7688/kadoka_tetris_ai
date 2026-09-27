@@ -1,11 +1,12 @@
 # 開発エージェント向けルール
 
-作業開始時はまず `AI_CONTEXT.md` と現在タスクを読み、`docs/context-routing.md` から対象routeを選ぶ。
-全docs・全Issue・全履歴を先に読まない。対象sourceとmatching testsを優先し、詳細資料は必要になった時だけ読む。
+作業開始時はまず `AI_CONTEXT.md` と現在タスクを読み、`docs/context-routing.md` から対象routeを選ぶ。このroute文書をサブシステム索引（project map）として使い、重複する索引は作らない。
+全docs・全Issue・全履歴を先に読まない。Gitのstatus・差分規模・remote deltaを確認し、対象sourceとmatching testsを優先する。関連Issueや詳細資料は必要なものだけ読む。
 `docs/開発予定.md` と評価フィードバックは、予定選択・「次へ」・該当機能の評価を扱う時に読む。
 今回の作業箇所に関する既存変更も確認し、ユーザーの変更を上書き・削除しない。
 
-- Goal / Required / Acceptance と対象境界・検証方法が揃ったら広い探索を止める。
+- Goal / Required / Acceptance evidence / affected boundary が揃ったら広い探索を止める。新たな疑問、失敗、未知の影響が出た時だけ必要範囲を追加で調べる。
+- 静的解析で判定できることはchecker/searchに任せ、繰り返す確認はまとめ、必要なファイル範囲だけ読む。長いコマンド出力やログは判定結果・要点・参照先に圧縮し、成功ログを会話へ繰り返し載せない。
 - **authoritative gameplay core / runtime はC++で実装する。** 新しいゲームルールをPython coreだけへ追加しない。
 - **PythonはAI学習・dataset生成・評価・実験・変換・研究toolingを主責務とする。** C++ CoreからPython学習コードへ逆依存しない。
 - 既存 `src/tetris/core/` はC++移行中の挙動参照であり、移行完了後のcanonical state ownerにしない。
