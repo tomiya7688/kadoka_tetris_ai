@@ -17,9 +17,9 @@
 
 人間/AI共通の意味的コマンド、対戦進行、アプリケーション調停。
 
-- Target Source: C++ Runtime（core移行に合わせて追加）
+- Target Source: `runtime/include/kadoka/tetris/runtime/`, `runtime/src/`
 - Migration source: `src/tetris/application/`, `src/tetris/adapters/`
-- Tests: C++ runtime testsを優先し、既存Python testsを移行参照にする
+- Tests: `tests_cpp/headless_runtime_test.cpp` とC++ Runtime CTestを優先し、既存Python testsを移行参照にする
 - Invariant: 人間とAIは同じ権威あるC++状態遷移を通る
 - Validation: deterministic input/seedを優先
 
@@ -57,8 +57,9 @@ AI学習、dataset生成、weight sweep、研究実験。
 
 AIへ渡す観測、可視化用観測。
 
-- Target producer: C++ Runtime
+- Target producer: `runtime/src/observation.cpp` (C++ Runtime)
 - Python consumer/tooling: `src/tetris/observation/`
+- C++ API: `runtime/include/kadoka/tetris/runtime/observation.hpp`
 - Existing reference: `src/tetris/application/ai_backend.py::public_observation`
 - Invariant: hidden future pieces / internal RNG stateを漏らさない
 
