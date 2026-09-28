@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kadoka/tetris/game_state.hpp"
+#include "kadoka/tetris/runtime/observation.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -50,6 +50,7 @@ public:
     [[nodiscard]] std::uint64_t current_tick() const noexcept { return current_tick_; }
     [[nodiscard]] std::size_t player_count() const noexcept { return games_.size(); }
     [[nodiscard]] const GameState& game(std::size_t player) const;
+    [[nodiscard]] PlayerObservation observe(std::size_t player) const;
 
 private:
     void apply(const SemanticCommand& command);

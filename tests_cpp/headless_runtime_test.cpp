@@ -17,6 +17,13 @@ int main() {
 
     {
         HeadlessRuntime runtime({11, 29});
+        const PlayerObservation observation = runtime.observe(0);
+        assert(observation.current_piece == runtime.game(0).active().kind);
+        assert(observation.hold_piece == runtime.game(0).hold());
+        assert(observation.next_pieces == runtime.game(0).next_pieces());
+        assert(observation.board.width == runtime.game(0).board().width());
+        assert(observation.board.height == runtime.game(0).board().visible_height());
+
         const int player_zero_x = runtime.game(0).active().x;
         const int player_one_x = runtime.game(1).active().x;
         runtime.submit({0, 0, 1, SemanticAction::MoveLeft});
@@ -28,6 +35,14 @@ int main() {
         assert(runtime.current_tick() == 1);
         assert(runtime.game(0).active().x == player_zero_x);
         assert(runtime.game(1).active().x == player_one_x + 1);
+    }
+
+    {
+        HeadlessRuntime runtime({11});
+        bool out_of_range_rejected = false;
+        try { (void)runtime.observe(1); }
+        catch (const std::out_of_range&) { out_of_range_rejected = true; }
+        assert(out_of_range_rejected);
     }
 
     {
