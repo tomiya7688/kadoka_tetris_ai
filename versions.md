@@ -15,3 +15,6 @@
 
 ## Unreleased - 2026-09-28
 - HeadlessRuntimeからプレイヤー別の可視Observationを値コピーで取得可能にした。
+
+## Unreleased - 2026-09-29
+- Python学習bridgeに向け、C++ Observationへactive piece位置・回転とプレイ進行metadataを追加。

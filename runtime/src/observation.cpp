@@ -18,13 +18,24 @@ PlayerObservation observe_player(const GameState& game) {
     PlayerObservation observation;
     observation.board = observe_board(game.board());
     observation.hold_piece = game.hold();
+    observation.hold_used = game.hold_used();
     observation.next_pieces = game.next_pieces();
+    observation.game_over = game.game_over();
+    observation.lines = game.lines();
+    observation.combo = game.combo();
+    observation.back_to_back_active = game.back_to_back_active();
+    observation.pieces_locked = game.pieces_locked();
     if (game.game_over()) {
         return observation;
     }
 
     const ActivePiece& active = game.active();
-    observation.current_piece = active.kind;
+    observation.active_piece = ActivePieceObservation{
+        active.kind,
+        active.x,
+        active.y - game.board().hidden_rows(),
+        active.rotation,
+    };
     for (const Offset cell : active.cells()) {
         const int x = active.x + cell.x;
         const int y = active.y + cell.y - game.board().hidden_rows();

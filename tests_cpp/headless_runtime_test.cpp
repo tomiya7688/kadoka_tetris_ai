@@ -18,7 +18,8 @@ int main() {
     {
         HeadlessRuntime runtime({11, 29});
         const PlayerObservation observation = runtime.observe(0);
-        assert(observation.current_piece == runtime.game(0).active().kind);
+        assert(observation.active_piece.has_value());
+        assert(observation.active_piece->kind == runtime.game(0).active().kind);
         assert(observation.hold_piece == runtime.game(0).hold());
         assert(observation.next_pieces == runtime.game(0).next_pieces());
         assert(observation.board.width == runtime.game(0).board().width());
