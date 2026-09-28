@@ -83,6 +83,10 @@ const GameState& HeadlessRuntime::game(std::size_t player) const {
     return games_[player];
 }
 
+PlayerObservation HeadlessRuntime::observe(std::size_t player) const {
+    return observe_player(game(player));
+}
+
 void HeadlessRuntime::apply(const SemanticCommand& command) {
     auto& game = games_[command.player];
     switch (command.action) {

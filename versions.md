@@ -12,3 +12,6 @@
 ## Unreleased - 2026-09-26
 - C++ Runtimeからhidden rowsとbag/RNGを除いたplayer-visible observationを生成。
 - AI_CONTEXT・route索引・ワークフローにタスク単位のコンテキスト削減と段階的検証の手順を反映。
+
+## Unreleased - 2026-09-28
+- HeadlessRuntimeからプレイヤー別の可視Observationを値コピーで取得可能にした。
