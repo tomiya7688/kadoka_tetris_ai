@@ -38,6 +38,8 @@ Do not spawn a process per decision. For persistent workers, use one process per
 
 Compare candidates using the same Release C++ build, fixed seed set, game configuration, and deterministic policy/input workload. Record the source revision and machine/build configuration with results.
 
+The initial native baseline runner is `kadoka_tetris_runtime_benchmark`; its bounded CLI and emitted measurements are documented in `docs/cpp-runtime-benchmark.md`. It measures serial headless workloads and does not claim parallel worker scaling or compare a Python transport that is not implemented yet.
+
 Measure startup separately from steady state. Report tick advancement alone, observation creation alone, and observation-plus-proposal round trip separately. Run both single-worker and multi-worker cases; warm up, repeat each case, and report median throughput (ticks/s, observations/s, decisions/s, and games/s) plus a deterministic trace checksum. Candidate traces must match the native reference where semantics are intended to match.
 
 Keep native gameplay cost separate from bridge cost. Do not impose an arbitrary speed threshold; choose the simplest candidate that satisfies measured throughput, worker scaling, Windows distribution, and CI needs. Reconsider shared memory only if measurements show serialization/copying is the limiting cost.

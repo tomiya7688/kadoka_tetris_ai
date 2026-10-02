@@ -22,3 +22,4 @@
 ## Unreleased - 2026-10-02
 - Issue #37に向けてPython learning bridgeの責務境界とtransport比較ベンチ条件を設計。
 - HeadlessRuntimeに複数semantic actionのatomic proposal受付を追加。
+- 固定seed・有界実行・trace checksum付きのC++ headless runtime基準benchmarkを追加。

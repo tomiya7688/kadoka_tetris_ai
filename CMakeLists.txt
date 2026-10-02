@@ -37,6 +37,11 @@ target_link_libraries(kadoka_tetris_runtime PUBLIC kadoka_tetris_core)
 
 target_compile_features(kadoka_tetris_runtime PUBLIC cxx_std_20)
 
+add_executable(kadoka_tetris_runtime_benchmark
+    benchmarks_cpp/headless_runtime_benchmark.cpp
+)
+target_link_libraries(kadoka_tetris_runtime_benchmark PRIVATE kadoka_tetris_runtime)
+
 include(CTest)
 
 if(BUILD_TESTING)
@@ -63,4 +68,14 @@ if(BUILD_TESTING)
     )
     target_link_libraries(kadoka_tetris_observation_tests PRIVATE kadoka_tetris_runtime)
     add_test(NAME kadoka_tetris_observation_tests COMMAND kadoka_tetris_observation_tests)
+
+    add_test(
+        NAME kadoka_tetris_runtime_benchmark_smoke
+        COMMAND kadoka_tetris_runtime_benchmark
+            --seed 123
+            --games 2
+            --ticks 16
+            --warmup 1
+            --repeats 3
+    )
 endif()
