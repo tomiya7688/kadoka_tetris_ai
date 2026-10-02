@@ -70,7 +70,8 @@ CPU評価、weight sweep、計測。
 
 - Runtime benchmark: C++
 - 学習・集計・可視化: Python
-- Source: `src/tetris/benchmark/`, 関連AI実装
+- Source: `benchmarks_cpp/`, `src/tetris/benchmark/`, 関連AI実装
+- Docs: `docs/cpp-runtime-benchmark.md`, `docs/python-learning-bridge.md`
 - Validation: fixed seeds / fixed config / bounded games。同一条件以外の数値を直接比較しない
 
 ## distribution
