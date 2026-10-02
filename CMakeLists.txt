@@ -7,6 +7,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+option(KADOKA_ENABLE_SANITIZERS "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
+if(KADOKA_ENABLE_SANITIZERS)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang" AND NOT MSVC)
+        add_compile_options(-fsanitize=address,undefined -fno-omit-frame-pointer)
+        add_link_options(-fsanitize=address,undefined)
+    else()
+        message(FATAL_ERROR "KADOKA_ENABLE_SANITIZERS requires GCC or non-MSVC Clang")
+    endif()
+endif()
+
 add_library(kadoka_tetris_core
     core/src/active_piece.cpp
     core/src/board.cpp
