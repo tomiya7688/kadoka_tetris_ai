@@ -87,7 +87,7 @@ C++ Runtime、Python tooling/UI、PyInstallerまたは後続packaging、runtime 
 CI、ruff、CMake、checker、依存境界、開発ルール。
 
 - Source: `.github/workflows/`, `CMakeLists.txt`, `pyproject.toml`, `tools/kadoka_rule_checker.py`, `AGENTS.md`
-- Docs: `docs/コーディングルール.md`, `docs/sibling-project-alignment.md`, `docs/cpp-core-migration.md`
+- Docs: `docs/コーディングルール.md`, `docs/sibling-project-alignment.md`, `docs/cpp-core-migration.md`, `docs/cpp-memory-safety.md`
 - Validation: checker -> C++ build/CTest -> compileall -> ruff -> unittest
 
 ## Broadening Rules

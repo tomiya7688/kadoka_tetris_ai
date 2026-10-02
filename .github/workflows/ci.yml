@@ -14,6 +14,54 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cpp-memory-safety:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      LSAN_OPTIONS: exitcode=23:report_objects=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure C++ sanitizers
+        run: >-
+          cmake -S . -B build-cpp-sanitized -DCMAKE_BUILD_TYPE=Debug
+          -DBUILD_TESTING=ON -DKADOKA_ENABLE_SANITIZERS=ON
+
+      - name: Build sanitized C++ targets
+        run: cmake --build build-cpp-sanitized --config Debug --parallel 2
+
+      - name: Run sanitized C++ tests with leak detection
+        run: ctest --test-dir build-cpp-sanitized -C Debug --output-on-failure
+
+      - name: Verify an unfreed allocation fails the leak check
+        shell: bash
+        run: |
+          cat > leak_probe.cpp <<'EOF'
+          void leak() {
+              int* leaked = new int[8]();
+              leaked[0] = 17;
+              (void)leaked[0];
+          }
+          int main() {
+              leak();
+              return 0;
+          }
+          EOF
+          c++ -g -fsanitize=address,undefined -fno-omit-frame-pointer leak_probe.cpp -o leak_probe
+          set +e
+          ./leak_probe > leak_probe.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 23 ] || ! grep -q "LeakSanitizer: detected memory leaks" leak_probe.log; then
+            cat leak_probe.log
+            echo "LeakSanitizer did not fail on the intentional leak."
+            exit 1
+          fi
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 15
