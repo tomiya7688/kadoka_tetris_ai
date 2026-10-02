@@ -46,6 +46,13 @@ public:
         std::size_t next_count = 5);
 
     void submit(const SemanticCommand& command);
+    // Validate every action before queueing any of them. Sequence numbers are
+    // assigned consecutively from first_sequence.
+    void submit_proposal(
+        std::size_t player,
+        std::uint64_t tick,
+        std::uint64_t first_sequence,
+        const std::vector<SemanticAction>& actions);
     [[nodiscard]] TickResult advance();
     [[nodiscard]] std::uint64_t current_tick() const noexcept { return current_tick_; }
     [[nodiscard]] std::size_t player_count() const noexcept { return games_.size(); }

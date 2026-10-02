@@ -6,6 +6,8 @@
 
 `SemanticCommand` はplayer、tick、sequence、actionを持つ。actionは `move_left`、`move_right`、`rotate_cw`、`rotate_ccw`、`soft_drop`、`hard_drop`、`hold` に対応する。存在しないplayer、過去tick、同じplayer/tick内で重複するsequence、不正actionは受付時に拒否する。同tickの順序はplayer番号、sequence番号で決定する。
 
+`HeadlessRuntime::submit_proposal` は複数のsemantic actionを受け取り、全action・sequence範囲・既存sequenceとの衝突を検証してから一括でqueueへ追加する。不正proposalは有効なprefixもqueueへ残さない。単一commandの `submit` も同じ検証経路を通る。
+
 `advance()` は現在tickのコマンドを適用し、コマンドがないtickでもtickを1つ進める。同一seed・同一コマンド列は同一状態列を生成する。tick進行や意味的入力をGUIと壁時計から独立させる。
 
 `observe(player)` は指定プレイヤーの値コピー `PlayerObservation` を返し、内部状態から観測生成への経路を提供する。プレイヤー番号の検証は `game(player)` と同じく範囲外を拒否し、AI側へ canonical state の可変参照を渡さない。
