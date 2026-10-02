@@ -144,3 +144,5 @@ Tetris:  AIBackend -> run_ai_turn -> Command/TickEngine
 ```
 
 The games share authority semantics and backend vocabulary, not state or move binary formats.
+
+Python learning/evaluation integration with the C++ HeadlessRuntime is a separate boundary; see [Python Learning Bridge Design](python-learning-bridge.md).

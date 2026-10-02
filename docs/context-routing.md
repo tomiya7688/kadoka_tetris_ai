@@ -42,6 +42,7 @@ AI学習、dataset生成、weight sweep、研究実験。
 - Source: `src/tetris/ai/`, `src/tetris/cpu/`, `src/tetris/benchmark/` と今後のtraining modules
 - Language: Pythonを標準とする
 - Runtime access: C++ Runtimeのobservation/action bridge経由
+- Docs: `docs/python-learning-bridge.md`, `docs/cpp-visible-observation.md`
 - Invariant: Python学習コードがcanonical game stateを独自実装しない
 - Validation: fixed seed / fixed config / bounded games
 
