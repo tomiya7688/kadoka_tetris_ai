@@ -65,6 +65,27 @@ int main() {
     }
 
     {
+        HeadlessRuntime runtime({31});
+        const int initial_x = runtime.game(0).active().x;
+        bool proposal_rejected = false;
+        try {
+            runtime.submit_proposal(0, 0, 10, {
+                SemanticAction::MoveRight,
+                static_cast<SemanticAction>(255),
+            });
+        } catch (const std::invalid_argument&) {
+            proposal_rejected = true;
+        }
+        assert(proposal_rejected);
+
+        // Reusing the first sequence proves the valid prefix was not queued.
+        runtime.submit({0, 0, 10, SemanticAction::MoveLeft});
+        const TickResult result = runtime.advance();
+        assert(result.commands_processed == 1);
+        assert(runtime.game(0).active().x == initial_x - 1);
+    }
+
+    {
         HeadlessRuntime left({123});
         HeadlessRuntime right({123});
         left.submit({0, 0, 0, SemanticAction::RotateClockwise});

@@ -1,6 +1,7 @@
 #include "kadoka/tetris/runtime/headless_runtime.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <stdexcept>
 #include <tuple>
 
@@ -36,24 +37,60 @@ HeadlessRuntime::HeadlessRuntime(
 }
 
 void HeadlessRuntime::submit(const SemanticCommand& command) {
-    if (command.player >= games_.size()) {
+    submit_proposal(command.player, command.tick, command.sequence, {command.action});
+}
+
+void HeadlessRuntime::submit_proposal(
+    std::size_t player,
+    std::uint64_t tick,
+    std::uint64_t first_sequence,
+    const std::vector<SemanticAction>& actions
+) {
+    if (player >= games_.size()) {
         throw std::invalid_argument("command player is out of range");
     }
-    if (command.tick < current_tick_) {
+    if (tick < current_tick_) {
         throw std::invalid_argument("command tick is in the past");
     }
-    if (semantic_action_name(command.action).empty()) {
-        throw std::invalid_argument("command action is invalid");
+    if (actions.empty()) {
+        return;
+    }
+    const auto last_offset = actions.size() - 1;
+    if (last_offset > std::numeric_limits<std::uint64_t>::max() - first_sequence) {
+        throw std::invalid_argument("proposal sequence range overflows");
+    }
+    for (const auto action : actions) {
+        if (semantic_action_name(action).empty()) {
+            throw std::invalid_argument("command action is invalid");
+        }
     }
 
-    auto& commands = pending_[command.tick];
-    const auto duplicate = std::find_if(commands.begin(), commands.end(), [&](const auto& queued) {
-        return queued.player == command.player && queued.sequence == command.sequence;
-    });
-    if (duplicate != commands.end()) {
-        throw std::invalid_argument("command sequence is duplicated for this player and tick");
+    const auto queued = pending_.find(tick);
+    if (queued != pending_.end()) {
+        for (std::size_t offset = 0; offset < actions.size(); ++offset) {
+            const auto sequence = first_sequence + static_cast<std::uint64_t>(offset);
+            const auto duplicate = std::find_if(
+                queued->second.begin(), queued->second.end(), [&](const auto& command) {
+                    return command.player == player && command.sequence == sequence;
+                });
+            if (duplicate != queued->second.end()) {
+                throw std::invalid_argument("command sequence is duplicated for this player and tick");
+            }
+        }
     }
-    commands.push_back(command);
+
+    std::vector<SemanticCommand> commands;
+    commands.reserve(actions.size());
+    for (std::size_t offset = 0; offset < actions.size(); ++offset) {
+        commands.push_back({
+            player,
+            tick,
+            first_sequence + static_cast<std::uint64_t>(offset),
+            actions[offset],
+        });
+    }
+    auto& destination = pending_[tick];
+    destination.insert(destination.end(), commands.begin(), commands.end());
 }
 
 TickResult HeadlessRuntime::advance() {
