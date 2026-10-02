@@ -18,3 +18,6 @@
 
 ## Unreleased - 2026-09-29
 - Python学習bridgeに向け、C++ Observationへactive piece位置・回転とプレイ進行metadataを追加。
+
+## Unreleased - 2026-10-02
+- Issue #37に向けてPython learning bridgeの責務境界とtransport比較ベンチ条件を設計。
