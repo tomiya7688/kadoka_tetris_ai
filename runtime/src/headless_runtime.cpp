@@ -126,6 +126,11 @@ PlayerObservation HeadlessRuntime::observe(std::size_t player) const {
 
 void HeadlessRuntime::apply(const SemanticCommand& command) {
     auto& game = games_[command.player];
+    // A proposal can top out before its last action. Terminal state must not
+    // attempt to lock a newly spawned, colliding piece or mutate hold/state.
+    if (game.game_over()) {
+        return;
+    }
     switch (command.action) {
         case SemanticAction::MoveLeft: (void)game.move(-1); return;
         case SemanticAction::MoveRight: (void)game.move(1); return;
