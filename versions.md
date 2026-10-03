@@ -24,3 +24,6 @@
 - HeadlessRuntimeに複数semantic actionのatomic proposal受付を追加。
 - 固定seed・有界実行・trace checksum付きのC++ headless runtime基準benchmarkを追加。
 - C++ CIにASan・LSan・UBSanを追加し、リーク検出が失敗するprobeを実行。
+
+## Unreleased - 2026-10-03
+- Python learning bridge候補として、opaque handle・可視snapshot・atomic proposal・例外status変換を持つC ABI共有ライブラリを追加。

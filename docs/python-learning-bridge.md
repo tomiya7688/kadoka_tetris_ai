@@ -29,6 +29,7 @@ Keep the C++ native baseline direct. Compare bridge candidates with the same wor
 | --- | --- | --- |
 | C++ native baseline | No bridge overhead; reference throughput | Does not execute a Python learner |
 | In-process CPython extension | Low per-call transport overhead | Python embedding/extension ABI and distribution complexity |
+| In-process C ABI + ctypes | No Python headers or extension-version coupling | Explicit ABI/lifetime checks and per-call conversion cost |
 | Persistent JSONL process | Simple isolation and existing project experience; amortizes startup | Serialization and pipe-copy overhead |
 | Shared memory | Potentially low copy cost for large batches | Synchronization, lifecycle, and debugging complexity |
 
@@ -52,3 +53,5 @@ Keep native gameplay cost separate from bridge cost. Do not impose an arbitrary 
 4. Implement the narrow bridge and verify fixed-seed trace parity, invalid-proposal rejection, independent worker state, and distribution smoke behavior.
 
 The C++ Runtime remains buildable and testable without Python. Python remains responsible for learning, dataset generation, evaluation, and experiments.
+
+The first in-process candidate is a shared-library C ABI described in `docs/cpp-runtime-c-abi.md`. Native parity and lifecycle tests cover its boundary; a Python wrapper and comparative performance evidence are still required before transport selection.

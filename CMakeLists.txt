@@ -47,6 +47,13 @@ target_link_libraries(kadoka_tetris_runtime PUBLIC kadoka_tetris_core)
 
 target_compile_features(kadoka_tetris_runtime PUBLIC cxx_std_20)
 
+# The learning bridge candidate has no Python headers or runtime dependency.
+set_target_properties(kadoka_tetris_core kadoka_tetris_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(kadoka_tetris_bridge SHARED runtime/src/c_api.cpp)
+target_compile_definitions(kadoka_tetris_bridge PRIVATE KADOKA_TETRIS_C_API_BUILD)
+target_link_libraries(kadoka_tetris_bridge PRIVATE kadoka_tetris_runtime)
+target_include_directories(kadoka_tetris_bridge PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/runtime/include)
+
 add_executable(kadoka_tetris_runtime_benchmark
     benchmarks_cpp/headless_runtime_benchmark.cpp
 )
@@ -55,6 +62,10 @@ target_link_libraries(kadoka_tetris_runtime_benchmark PRIVATE kadoka_tetris_runt
 include(CTest)
 
 if(BUILD_TESTING)
+    add_executable(kadoka_tetris_c_api_tests tests_cpp/c_api_test.cpp)
+    target_link_libraries(kadoka_tetris_c_api_tests PRIVATE kadoka_tetris_bridge kadoka_tetris_runtime)
+    add_test(NAME kadoka_tetris_c_api_tests COMMAND kadoka_tetris_c_api_tests)
+
     add_executable(kadoka_tetris_core_tests
         tests_cpp/core_board_test.cpp
     )
