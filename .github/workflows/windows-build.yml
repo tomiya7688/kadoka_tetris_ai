@@ -17,6 +17,8 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 25
+    env:
+      KADOKA_TETRIS_BRIDGE: ${{ github.workspace }}/build-cpp/Release/kadoka_tetris_bridge.dll
 
     steps:
       - name: Check out repository

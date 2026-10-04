@@ -54,4 +54,4 @@ Keep native gameplay cost separate from bridge cost. Do not impose an arbitrary 
 
 The C++ Runtime remains buildable and testable without Python. Python remains responsible for learning, dataset generation, evaluation, and experiments.
 
-The first in-process candidate is a shared-library C ABI described in `docs/cpp-runtime-c-abi.md`. Native parity and lifecycle tests cover its boundary; a Python wrapper and comparative performance evidence are still required before transport selection.
+The first in-process candidate is a shared-library C ABI with a Python `ctypes` learning API described in `docs/cpp-runtime-c-abi.md`. Native parity, Python deterministic replay, proposal rejection, and lifecycle tests cover its boundary. Comparative performance, worker scaling, and packaging evidence are still required before transport selection.

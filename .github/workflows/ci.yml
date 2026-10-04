@@ -67,6 +67,7 @@ jobs:
     timeout-minutes: 15
     env:
       PYTHONPATH: ${{ github.workspace }}/src
+      KADOKA_TETRIS_BRIDGE: ${{ github.workspace }}/build-cpp/libkadoka_tetris_bridge.so
 
     steps:
       - name: Check out repository
