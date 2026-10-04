@@ -27,3 +27,6 @@
 
 ## Unreleased - 2026-10-03
 - Python learning bridge候補として、opaque handle・可視snapshot・atomic proposal・例外status変換を持つC ABI共有ライブラリを追加。
+
+## Unreleased - 2026-10-04
+- C ABI候補を利用するPython学習用APIを追加。immutableな可視snapshot、入力範囲検査、context managerによる解放、固定seed再現性を検証。

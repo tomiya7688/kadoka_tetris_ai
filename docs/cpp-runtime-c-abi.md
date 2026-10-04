@@ -1,6 +1,6 @@
 # C++ Runtime C ABI candidate
 
-Issue #37のin-process bridge候補です。Pythonの`ctypes.CDLL`から呼べるC ABIを共有ライブラリとして提供します。正式transportの選択、Python学習API、比較benchmarkは次の作業です。Core/RuntimeにPythonの依存はありません。
+Issue #37のin-process bridge候補です。Pythonの`ctypes.CDLL`から呼べるC ABIを共有ライブラリとして提供します。Python学習APIは`src/tetris/learning/`にあります。正式transportの選択と比較benchmarkは未完了です。Core/RuntimeにPythonの依存はありません。
 
 ## Build and contract
 
@@ -16,7 +16,41 @@ Issue #37のin-process bridge候補です。Pythonの`ctypes.CDLL`から呼べ�
 - handleはopaqueな所有権tokenです。consumerは改造、二重解放、解放後の利用をしてはいけません。非NULLのpointerは有効な指定型の領域を指す必要があり、不正pointer自体の安全性をC ABIは保証しません。
 - 同じhandleの呼び出しは直列化します。独立workerは独立handleを所有します。snapshotの書き換えはcanonical stateへ影響しません。
 
-共有ライブラリは学習用の候補artifactです。既存GUI配布にはまだ組み込みません。Windows/Linux CIのCMake buildは実際の共有ライブラリにlinkしたconsumerを実行します。Python wrapper、配布物への同梱、transport比較・worker scalingは未実装です。
+共有ライブラリは学習用の候補artifactです。既存GUI配布にはまだ組み込みません。Windows/Linux CIでは、実際の共有ライブラリにlinkしたC++ consumerとPython wrapperを実行します。配布物への同梱、transport比較・worker scalingは未実装です。
+
+## Python learning API
+
+Python学習・dataset・評価toolingだけが利用するAPIです。GUIやnative gameplayにはPythonを必須にしません。標準ライブラリの`ctypes`だけを使用し、Python coreへのfallbackはありません。
+
+```python
+from tetris.learning import NativeRuntime
+
+# Callerが生成済みライブラリのpathを選ぶ。検索pathへの自動fallbackはしない。
+with NativeRuntime("build-cpp/Release/kadoka_tetris_bridge.dll", [123, 456]) as runtime:
+    observation = runtime.observe(0)
+    runtime.submit(0, observation.tick, 0, ["rotate_cw", "hard_drop"])
+    processed_tick, commands_processed = runtime.advance()
+    next_observation = runtime.observe(0)
+```
+
+Linuxではpathを`build-cpp/libkadoka_tetris_bridge.so`へ変更します。実行時は`PYTHONPATH=src`を設定します。構造体のABI versionとsizeを生成前に照合し、不一致はエラーにします。
+
+- `LearningObservation`はfrozen dataclassで、maskはimmutableな`bytes`、NEXTは`tuple`です。native memoryへの参照は返しません。
+- action名は`move_left`、`move_right`、`rotate_cw`、`rotate_ccw`、`soft_drop`、`hard_drop`、`hold`です。
+- seeds/tick/sequenceはuint64、playerはuint32の範囲をPython側でも検査し、ctypesによる負数・巨大整数のwrapを防ぎます。boolや浮動小数も受け付けません。
+- proposal検証はC++が正本です。重複sequence・overflow・過去tick等は`ValueError`、observationの範囲外playerは`IndexError`になります。
+- `with`または`close()`で解放します。closeは複数回呼べます。終了済みinstanceの操作は`RuntimeError`です。忘れたcloseの補助としてfinalizerもありますが、通常は明示的に閉じます。
+- 同一instanceの呼出しとcloseはlockで直列化します。worker間でhandleを共有・転送せず、それぞれ独立instanceを生成します。observe→submit→advanceの一連の手順全体がtransactionになるわけではありません。
+
+targeted tests:
+
+```powershell
+$env:PYTHONPATH = "src"
+$env:KADOKA_TETRIS_BRIDGE = "build-cpp/Release/kadoka_tetris_bridge.dll"
+python -m unittest discover -s tests -p 'test_native_runtime*.py' -v
+```
+
+通常のPython-only環境ではlibrary指定がなければintegration testsだけskipします。CIではlibrary pathを必ず指定し、存在しない・ABI不一致の場合はfailします。ABI不一致のunit testsは常に実行します。
 
 ## Evidence
 
