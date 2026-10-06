@@ -1,6 +1,6 @@
 # C++ Headless Runtime Benchmark
 
-`kadoka_tetris_runtime_benchmark` records the C++ native baseline for Issue #37. The Python comparison runs the same policy and workload through the learning API, requires the trace checksums to match, and reports throughput separately. Both runners are serial: this comparison does not measure multi-worker scaling.
+`kadoka_tetris_runtime_benchmark` records the C++ native baseline for Issue #37. The Python comparison runs the same policy and workload through the learning API, requires the trace checksums to match, and reports throughput separately. The Python wrapper also measures independent thread workers; each worker owns its own C++ Runtime.
 
 ## Run
 
@@ -22,12 +22,16 @@ $env:PYTHONPATH = "src"
 python -m tetris.benchmark.runtime_bridge_benchmark `
   --library build-cpp/Release/kadoka_tetris_bridge.dll `
   --native-executable build-cpp/Release/kadoka_tetris_runtime_benchmark.exe `
-  --seed 123 --games 8 --ticks 5000 --warmup 2 --repeats 5
+  --seed 123 --games 8 --ticks 5000 --warmup 2 --repeats 5 --workers 4
 ```
 
-Linux paths are `build-cpp/libkadoka_tetris_bridge.so` and `build-cpp/kadoka_tetris_runtime_benchmark`. The command returns one JSON object containing native, serial ctypes and batched ctypes medians, per-stage rates, Python version/platform, matching checksums, and batch speedup. Both bridge modes run with the same inputs and must match the native trace. It fails if any runner is nondeterministic or traces differ. The startup metric is Runtime construction, including the candidate's library load; it excludes starting the Python interpreter. The timed Python roundtrip includes immutable snapshot conversion, Python policy selection, checksum, ctypes submission, and C++ tick advance. Native measures the corresponding C++ policy and checksum without crossing the Python boundary.
+Linux paths are `build-cpp/libkadoka_tetris_bridge.so` and `build-cpp/kadoka_tetris_runtime_benchmark`. The command returns one JSON object containing native, serial ctypes and batched ctypes medians, per-stage rates, Python version/platform, matching checksums, batch speedup, and worker scaling. Both bridge modes run with the same inputs and must match the native trace.
 
-The policy can reach game over before the tick horizon, so a long run includes calls on terminal games. Treat rates as a fixed workload comparison, not as a measurement of full completed Tetris games. Run with identical seeds/options/build mode/machine and retain the emitted configuration with each result. Worker scaling still needs a separate benchmark.
+Worker scaling compares one thread with `--workers` threads using identical seeds and policy. Each thread owns one Runtime for its assigned games. The benchmark combines player trace checksums in stable order and requires all worker counts to match. The scaling report includes median games/second and speedup, and Runtime creation is included in each measurement. Set `--workers` from 2 through `min(games, 16)`; when omitted, the wrapper uses up to two workers. For a single game, scaling is reported as unavailable. Threads can overlap native calls because ctypes releases the GIL, but this result does not demonstrate parallelism for CPU-bound Python learning code.
+
+The benchmark fails if any runner is nondeterministic or traces differ. The startup metric is Runtime construction, including the candidate's library load; it excludes starting the Python interpreter. The timed Python roundtrip includes immutable snapshot conversion, Python policy selection, checksum, ctypes submission, and C++ tick advance. Native measures the corresponding C++ policy and checksum without crossing the Python boundary.
+
+The policy can reach game over before the tick horizon, so a long run includes calls on terminal games. Treat rates as a fixed workload comparison, not as a measurement of full completed Tetris games. Run with identical seeds/options/build mode/machine and retain the emitted configuration with each result.
 
 ## Recorded comparison
 
