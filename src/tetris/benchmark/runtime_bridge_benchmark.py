@@ -291,7 +291,7 @@ def worker_scaling_result(options: Options, expected_checksum: int) -> dict:
             "ticks_per_game": options.ticks,
             "warmup": options.warmup,
             "repeats": options.repeats,
-            "matching_worker_traces": True,
+            "matching_worker_traces": None,
             "scaling_available": False,
             "reason": "worker scaling requires at least two games",
         }
@@ -429,3 +429,4 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+
