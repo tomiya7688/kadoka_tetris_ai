@@ -1,12 +1,13 @@
 import ctypes as ct
 import threading
 import weakref
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from itertools import islice
 from pathlib import Path
 
 from ._library import check_status, load_library
 from ._native_observation import NativeObservation
+from ._native_proposal import NativeProposal
 from .learning_observation import LearningObservation
 
 ACTION_CODES = {
@@ -46,6 +47,7 @@ class NativeRuntime:
         values = list(islice(seeds, 65))
         if not 1 <= len(values) <= 64:
             raise ValueError("seeds must contain 1..64 values")
+        self._player_count = len(values)
         seeds_array = (ct.c_uint64 * len(values))(
             *(unsigned(seed, 64, "seed") for seed in values)
         )
@@ -85,6 +87,16 @@ class NativeRuntime:
             ))
         return copied_observation(raw)
 
+    def observe_many(self) -> tuple[LearningObservation, ...]:
+        """Copy visible observations for every player with one native call."""
+        with self._lock:
+            self._require_open()
+            raw = (NativeObservation * self._player_count)()
+            check_status(self._library.kt_observe_many(
+                self._handle, raw, self._player_count
+            ))
+        return tuple(copied_observation(item) for item in raw)
+
     def submit(self, player: int, tick: int, first_sequence: int, actions: Iterable[str]) -> None:
         unsigned(player, 32, "player")
         unsigned(tick, 64, "tick")
@@ -99,6 +111,40 @@ class NativeRuntime:
             self._require_open()
             check_status(self._library.kt_submit(
                 self._handle, player, tick, first_sequence, proposal, len(values)
+            ))
+
+    def submit_many(
+        self,
+        tick: int,
+        proposals: Iterable[tuple[int, int, Iterable[str]]],
+    ) -> None:
+        """Atomically submit (player, first_sequence, actions) proposals for one tick."""
+        unsigned(tick, 64, "tick")
+        values = list(islice(proposals, 65))
+        if not 1 <= len(values) <= 64:
+            raise ValueError("batch must contain 1..64 proposals")
+        native_proposals = (NativeProposal * len(values))()
+        flattened: list[int] = []
+        for index, proposal in enumerate(values):
+            if not isinstance(proposal, Sequence) or len(proposal) != 3:
+                raise ValueError("each proposal must be (player, first_sequence, actions)")
+            player, first_sequence, actions = proposal
+            unsigned(player, 32, "player")
+            unsigned(first_sequence, 64, "first_sequence")
+            action_names = list(islice(actions, 4097))
+            if len(action_names) > 4096 or len(flattened) + len(action_names) > 4096:
+                raise ValueError("batch may contain at most 4096 actions")
+            if any(not isinstance(action, str) or action not in ACTION_CODES for action in action_names):
+                raise ValueError("unknown semantic action")
+            native_proposals[index] = NativeProposal(
+                player, first_sequence, len(flattened), len(action_names)
+            )
+            flattened.extend(ACTION_CODES[action] for action in action_names)
+        action_array = (ct.c_uint8 * len(flattened))(*flattened)
+        with self._lock:
+            self._require_open()
+            check_status(self._library.kt_submit_many(
+                self._handle, tick, native_proposals, len(values), action_array, len(flattened)
             ))
 
     def advance(self) -> tuple[int, int]:

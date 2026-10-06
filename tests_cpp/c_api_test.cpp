@@ -130,14 +130,35 @@ void check_multiple_players() {
     kt_runtime* pointer = nullptr;
     require(kt_create(seeds, 2, &pointer) == KT_OK);
     Owner owner(pointer, kt_destroy);
-    const uint8_t drop = KT_HARD_DROP;
-    require(kt_submit(owner.get(), 1, 0, 0, &drop, 1) == KT_OK);
+    kt_observation snapshots[2]{};
+    require(kt_observe_many(owner.get(), snapshots, 2) == KT_OK);
+    require(snapshots[0].tick == 0 && snapshots[1].tick == 0);
+    snapshots[0].tick = 99;
+    require(kt_observe_many(owner.get(), snapshots, 1) == KT_INVALID_ARGUMENT);
+    require(snapshots[0].tick == 99);
+
+    const uint8_t actions[]{KT_HARD_DROP, KT_MOVE_LEFT};
+    const kt_proposal batch[]{{0, 0, 0, 1}, {1, 0, 1, 1}};
+    require(kt_submit_many(owner.get(), 0, batch, 2, actions, 2) == KT_OK);
     uint64_t tick = 0;
     uint64_t commands = 0;
-    require(kt_advance(owner.get(), &tick, &commands) == KT_OK && commands == 1);
-    require(observe(owner).pieces_locked == 0);
+    require(kt_advance(owner.get(), &tick, &commands) == KT_OK && commands == 2);
+    require(observe(owner).pieces_locked == 1);
     kt_observation second{};
-    require(kt_observe(owner.get(), 1, &second, sizeof(second)) == KT_OK && second.pieces_locked == 1);
+    require(kt_observe(owner.get(), 1, &second, sizeof(second)) == KT_OK);
+    require(second.active_x == 2);
+
+    auto atomic = create(7);
+    const uint8_t invalid_actions[]{KT_MOVE_LEFT, 255};
+    const kt_proposal invalid_batch[]{{0, 0, 0, 1}, {0, 1, 1, 1}};
+    require(kt_submit_many(atomic.get(), 0, invalid_batch, 2, invalid_actions, 2)
+        == KT_INVALID_ARGUMENT);
+    const kt_proposal reuse_first[]{{0, 0, 0, 1}};
+    require(kt_submit_many(atomic.get(), 0, reuse_first, 1, invalid_actions, 1) == KT_OK);
+    require(kt_advance(atomic.get(), &tick, &commands) == KT_OK && commands == 1);
+
+    const kt_proposal invalid_range[]{{0, 0, 2, 1}};
+    require(kt_submit_many(owner.get(), 1, invalid_range, 1, actions, 2) == KT_INVALID_ARGUMENT);
 }
 
 void check_benchmark_policy_parity() {

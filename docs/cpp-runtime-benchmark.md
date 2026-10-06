@@ -25,7 +25,7 @@ python -m tetris.benchmark.runtime_bridge_benchmark `
   --seed 123 --games 8 --ticks 5000 --warmup 2 --repeats 5
 ```
 
-Linux paths are `build-cpp/libkadoka_tetris_bridge.so` and `build-cpp/kadoka_tetris_runtime_benchmark`. The command returns one JSON object containing the native and Python medians, per-stage rates, Python version/platform, matching checksum, and roundtrip slowdown. It fails if either runner is nondeterministic or their traces differ. The startup metric is Runtime construction, including the candidate's library load; it excludes starting the Python interpreter. The timed Python roundtrip includes immutable snapshot conversion, Python policy selection, checksum, ctypes submission, and C++ tick advance. Native measures the corresponding C++ policy and checksum without crossing the Python boundary.
+Linux paths are `build-cpp/libkadoka_tetris_bridge.so` and `build-cpp/kadoka_tetris_runtime_benchmark`. The command returns one JSON object containing native, serial ctypes and batched ctypes medians, per-stage rates, Python version/platform, matching checksums, and batch speedup. Both bridge modes run with the same inputs and must match the native trace. It fails if any runner is nondeterministic or traces differ. The startup metric is Runtime construction, including the candidate's library load; it excludes starting the Python interpreter. The timed Python roundtrip includes immutable snapshot conversion, Python policy selection, checksum, ctypes submission, and C++ tick advance. Native measures the corresponding C++ policy and checksum without crossing the Python boundary.
 
 The policy can reach game over before the tick horizon, so a long run includes calls on terminal games. Treat rates as a fixed workload comparison, not as a measurement of full completed Tetris games. Run with identical seeds/options/build mode/machine and retain the emitted configuration with each result. Worker scaling still needs a separate benchmark.
 
@@ -40,6 +40,8 @@ Local Windows 10 Release run, CPython 3.14.7 / MSVC 18.10.1; seed 123, 8 players
 | Tick advances/s | 2,510,040 | 23,112 |
 | Decision roundtrips/s | 365,551 | 4,454 |
 
-Python is about 82× slower on complete decision roundtrips in this workload. Its measured path includes immutable snapshot conversion, Python policy selection, and trace hashing, so this is the current learning call path rather than isolated foreign-function overhead. This is evidence to batch/optimize the bridge before high-volume self-play, not a universal platform ratio or an arbitrary transport threshold.
+This initial serial comparison showed about 82× lower Python decision roundtrip throughput. Its measured path includes immutable snapshot conversion, Python policy selection, and trace hashing, so it reflects the learning call path rather than isolated foreign-function overhead.
+
+The paired serial-versus-batch mode uses the same workload for both Python paths. A Windows Release run on CPython 3.14.7 / MSVC 18.10.1 (seed 123, 8 players, 500 ticks/player, warmup 1, repeats 3) matched checksum `622275c1bca59bcc` in all three paths. Median Python decision roundtrips were 2,822/s serial and 3,199/s batched (1.13×); native was 283,746/s in that run. Treat these as one machine's measurements, not a portable speed promise.
 
 Record the source revision, compiler/build configuration, and machine alongside the JSON output when comparing runs. Compare values only across matching seeds, game count, tick count, build type, and workload. The implementation in `src/tetris/benchmark/runtime_bridge_benchmark.py` is a measurement harness, not a game/runtime dependency.

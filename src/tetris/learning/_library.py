@@ -2,6 +2,7 @@ import ctypes as ct
 from pathlib import Path
 
 from ._native_observation import NativeObservation
+from ._native_proposal import NativeProposal
 
 
 def load_library(path: str | Path) -> ct.CDLL:
@@ -13,7 +14,9 @@ def load_library(path: str | Path) -> ct.CDLL:
         "kt_create": ([ct.POINTER(ct.c_uint64), ct.c_uint32, ct.POINTER(ct.c_void_p)], ct.c_int32),
         "kt_destroy": ([ct.c_void_p], None),
         "kt_observe": ([ct.c_void_p, ct.c_uint32, ct.POINTER(NativeObservation), ct.c_uint32], ct.c_int32),
+        "kt_observe_many": ([ct.c_void_p, ct.POINTER(NativeObservation), ct.c_uint32], ct.c_int32),
         "kt_submit": ([ct.c_void_p, ct.c_uint32, ct.c_uint64, ct.c_uint64, ct.POINTER(ct.c_uint8), ct.c_uint32], ct.c_int32),
+        "kt_submit_many": ([ct.c_void_p, ct.c_uint64, ct.POINTER(NativeProposal), ct.c_uint32, ct.POINTER(ct.c_uint8), ct.c_uint32], ct.c_int32),
         "kt_advance": ([ct.c_void_p, ct.POINTER(ct.c_uint64), ct.POINTER(ct.c_uint64)], ct.c_int32),
     }
     for name, (arguments, result) in signatures.items():

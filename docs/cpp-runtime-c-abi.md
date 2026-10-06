@@ -9,14 +9,16 @@ Issue #37のin-process bridge候補です。Pythonの`ctypes.CDLL`から呼べ�
 - ABI versionは1。consumerは`kt_abi_version()`と`kt_observation_size()`を照合します。構造体には固定幅整数だけを使用し、自然alignment・cdeclで呼び出します。異なるbitness、packing、ABI versionを混ぜません。
 - 初期候補は10×20可視盤面・hidden 2行・NEXT 5個の標準設定のみ。1〜64 playerのseedを`kt_create()`へ渡します。
 - `kt_observe()`は可視盤面のrow-major mask、active/hold/NEXT、進行metadata、現在tickをcaller-owned bufferへコピーします。hidden行、bag、RNGは公開しません。失敗時はbufferを変更しません。
+- `kt_observe_many()`は全playerのsnapshotをcaller-owned配列へ一括コピーします。countはruntimeのplayer数と一致させます。失敗時は配列を変更しません。
 - `kt_submit()`は意味的action列をC++のatomic proposal検証へ渡します。proposalの長さは0〜4096。適用は`kt_advance()`で行います。空proposalはNULL actionsを許可します。
+- `kt_submit_many()`は最大64 proposal、合計4096 actionを一括検証して登録します。action範囲、player、tick、sequence、action値のどれかが不正なら、batch全体を登録しません。
 - Runtimeはgame over後のactionを無視します（command処理数には含めます）。同じproposalの途中でtop outしても、後続actionでterminal stateを変更しません。
 - statusはOK、invalid argument、out of range、out of memory、internal errorの5種類。C++例外はABI境界でstatusへ変換します。
 - `kt_create()`成功ごとに`kt_destroy()`を一度呼びます。NULL destroyは許可します。create失敗時のhandleはNULLです。
 - handleはopaqueな所有権tokenです。consumerは改造、二重解放、解放後の利用をしてはいけません。非NULLのpointerは有効な指定型の領域を指す必要があり、不正pointer自体の安全性をC ABIは保証しません。
 - 同じhandleの呼び出しは直列化します。独立workerは独立handleを所有します。snapshotの書き換えはcanonical stateへ影響しません。
 
-共有ライブラリは学習用の候補artifactです。既存GUI配布にはまだ組み込みません。Windows/Linux CIでは、実際の共有ライブラリにlinkしたC++ consumerとPython wrapperを実行します。配布物への同梱、transport比較・worker scalingは未実装です。
+共有ライブラリは学習用の候補artifactです。既存GUI配布にはまだ組み込みません。Windows/Linux CIでは、実際の共有ライブラリにlinkしたC++ consumerとPython wrapperを実行します。worker scalingは未計測です。
 
 ## Python learning API
 
@@ -34,6 +36,8 @@ with NativeRuntime("build-cpp/Release/kadoka_tetris_bridge.dll", [123, 456]) as 
 ```
 
 Linuxではpathを`build-cpp/libkadoka_tetris_bridge.so`へ変更します。実行時は`PYTHONPATH=src`を設定します。構造体のABI versionとsizeを生成前に照合し、不一致はエラーにします。
+
+複数playerでは`observe_many()`で全snapshotを受け取り、`submit_many(tick, [(player, first_sequence, actions), ...])`で一括登録できます。batch APIはforeign-function call回数を減らし、proposal全体を原子的に検証します。
 
 - `LearningObservation`はfrozen dataclassで、maskはimmutableな`bytes`、NEXTは`tuple`です。native memoryへの参照は返しません。
 - action名は`move_left`、`move_right`、`rotate_cw`、`rotate_ccw`、`soft_drop`、`hard_drop`、`hold`です。

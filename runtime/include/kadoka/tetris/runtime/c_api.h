@@ -56,6 +56,13 @@ typedef struct kt_observation {
     uint8_t active_cells[200];
 } kt_observation;
 
+typedef struct kt_proposal {
+    uint32_t player;
+    uint64_t first_sequence;
+    uint32_t action_offset;
+    uint32_t action_count;
+} kt_proposal;
+
 KT_API uint32_t KT_CALL kt_abi_version(void);
 KT_API uint32_t KT_CALL kt_observation_size(void);
 /* On failure *output is NULL. Seeds count is 1..64. */
@@ -65,9 +72,16 @@ KT_API void KT_CALL kt_destroy(kt_runtime* runtime);
 /* Output is changed only on success. size must match kt_observation_size(). */
 KT_API int32_t KT_CALL kt_observe(const kt_runtime* runtime, uint32_t player,
     kt_observation* output, uint32_t size);
+/* Count must match the runtime's player count (1..64); output changes only on success. */
+KT_API int32_t KT_CALL kt_observe_many(const kt_runtime* runtime,
+    kt_observation* outputs, uint32_t count);
 /* Proposal length is 0..4096. Empty proposal permits NULL actions. */
 KT_API int32_t KT_CALL kt_submit(kt_runtime* runtime, uint32_t player,
     uint64_t tick, uint64_t first_sequence, const uint8_t* actions, uint32_t count);
+/* Up to 64 proposal descriptors and 4096 flattened actions; all validate atomically. */
+KT_API int32_t KT_CALL kt_submit_many(kt_runtime* runtime, uint64_t tick,
+    const kt_proposal* proposals, uint32_t proposal_count,
+    const uint8_t* actions, uint32_t action_count);
 /* Returns the processed tick and command count; output pointers are required. */
 KT_API int32_t KT_CALL kt_advance(kt_runtime* runtime, uint64_t* tick, uint64_t* commands);
 

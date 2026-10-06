@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 from tetris.learning._library import load_library
 from tetris.learning._native_observation import NativeObservation
+from tetris.learning._native_proposal import NativeProposal
 
 
 class NativeRuntimeAbiTests(unittest.TestCase):
@@ -15,7 +16,8 @@ class NativeRuntimeAbiTests(unittest.TestCase):
                 "kt_abi_version": version,
                 "kt_observation_size": ct.sizeof(NativeObservation) if size is None else size,
                 "kt_create": 0, "kt_destroy": None, "kt_observe": 0,
-                "kt_submit": 0, "kt_advance": 0,
+                "kt_observe_many": 0, "kt_submit": 0, "kt_submit_many": 0,
+                "kt_advance": 0,
             }.items()
         })
 

@@ -70,6 +70,43 @@ class NativeRuntimeTests(unittest.TestCase):
             with self.assertRaises(IndexError):
                 runtime.observe(2)
 
+    def test_batched_observations_and_proposals_match_serial_api(self):
+        with self.runtime([11, 29]) as batched, self.runtime([11, 29]) as serial:
+            for tick in range(32):
+                self.assertEqual(batched.observe_many(), tuple(
+                    serial.observe(player) for player in range(2)
+                ))
+                proposals = [
+                    (0, 0, ["hard_drop"]),
+                    (1, 3, ["move_left", "rotate_cw"]),
+                ]
+                batched.submit_many(tick, proposals)
+                for player, sequence, actions in proposals:
+                    serial.submit(player, tick, sequence, actions)
+                self.assertEqual(batched.advance(), serial.advance())
+            self.assertEqual(batched.observe_many(), tuple(
+                serial.observe(player) for player in range(2)
+            ))
+
+    def test_batch_rejection_is_atomic_and_inputs_are_bounded(self):
+        with self.runtime([11, 29]) as runtime:
+            with self.assertRaises(ValueError):
+                runtime.submit_many(0, [
+                    (0, 8, ["move_left"]),
+                    (1, 9, ["teleport"]),
+                ])
+            runtime.submit(0, 0, 8, ["move_right"])
+            with self.assertRaises(ValueError):
+                runtime.submit_many(0, [
+                    (1, 0, ["move_left"]),
+                    (1, 0, ["hard_drop"]),
+                ])
+            self.assertEqual(runtime.advance(), (0, 1))
+            with self.assertRaises(ValueError):
+                runtime.submit_many(1, [(0, 0, repeat("hard_drop"))])
+            with self.assertRaises(ValueError):
+                runtime.submit_many(1, [(True, 0, [])])
+
     def test_unknown_action_rejects_entire_proposal(self):
         with self.runtime() as runtime:
             before = runtime.observe()

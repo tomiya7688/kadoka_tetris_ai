@@ -86,6 +86,36 @@ int main() {
     }
 
     {
+        HeadlessRuntime runtime({31, 37});
+        const int player_one_x = runtime.game(1).active().x;
+        bool rejected = false;
+        try {
+            runtime.submit_proposals(0, {
+                {0, 10, {SemanticAction::MoveRight}},
+                {1, 20, {static_cast<SemanticAction>(255)}},
+            });
+        } catch (const std::invalid_argument&) {
+            rejected = true;
+        }
+        assert(rejected);
+        // If the first player had been queued, the repeated sequence would fail.
+        runtime.submit_proposal(0, 0, 10, {SemanticAction::MoveLeft});
+        rejected = false;
+        try {
+            runtime.submit_proposals(0, {
+                {1, 30, {SemanticAction::MoveRight}},
+                {1, 30, {SemanticAction::HardDrop}},
+            });
+        } catch (const std::invalid_argument&) {
+            rejected = true;
+        }
+        assert(rejected);
+        const auto result = runtime.advance();
+        assert(result.commands_processed == 1);
+        assert(runtime.game(1).active().x == player_one_x);
+    }
+
+    {
         HeadlessRuntime left({123});
         HeadlessRuntime right({123});
         left.submit({0, 0, 0, SemanticAction::RotateClockwise});

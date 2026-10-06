@@ -1,6 +1,7 @@
 #include "kadoka/tetris/runtime/c_api.h"
 #include "kadoka/tetris/runtime/headless_runtime.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <new>
 #include <stdexcept>
@@ -8,6 +9,7 @@
 
 using kadoka::tetris::runtime::HeadlessRuntime;
 using kadoka::tetris::runtime::SemanticAction;
+using kadoka::tetris::runtime::PlayerProposal;
 
 // Opaque handle owns one independent canonical runtime.
 struct kt_runtime {
@@ -100,6 +102,20 @@ int32_t KT_CALL kt_observe(const kt_runtime* runtime, uint32_t player,
     return guarded([&] { *output = snapshot(runtime->value, player); });
 }
 
+int32_t KT_CALL kt_observe_many(const kt_runtime* runtime,
+                               kt_observation* outputs, uint32_t count) {
+    if (!runtime || !outputs || count == 0 || count > 64
+        || count != runtime->value.player_count()) { return KT_INVALID_ARGUMENT; }
+    return guarded([&] {
+        std::vector<kt_observation> snapshots;
+        snapshots.reserve(count);
+        for (uint32_t player = 0; player < count; ++player) {
+            snapshots.push_back(snapshot(runtime->value, player));
+        }
+        std::copy(snapshots.begin(), snapshots.end(), outputs);
+    });
+}
+
 int32_t KT_CALL kt_submit(kt_runtime* runtime, uint32_t player,
                         uint64_t tick, uint64_t first_sequence,
                         const uint8_t* actions, uint32_t count) {
@@ -112,6 +128,37 @@ int32_t KT_CALL kt_submit(kt_runtime* runtime, uint32_t player,
             proposal.push_back(static_cast<SemanticAction>(actions[index]));
         }
         runtime->value.submit_proposal(player, tick, first_sequence, proposal);
+    });
+}
+
+int32_t KT_CALL kt_submit_many(kt_runtime* runtime, uint64_t tick,
+                              const kt_proposal* proposals, uint32_t proposal_count,
+                              const uint8_t* actions, uint32_t action_count) {
+    if (!runtime || !proposals || proposal_count == 0 || proposal_count > 64
+        || action_count > 4096 || (action_count != 0 && !actions)) {
+        return KT_INVALID_ARGUMENT;
+    }
+    return guarded([&] {
+        std::vector<PlayerProposal> batch;
+        batch.reserve(proposal_count);
+        for (uint32_t index = 0; index < proposal_count; ++index) {
+            const auto& source = proposals[index];
+            if (source.action_offset > action_count
+                || source.action_count > action_count - source.action_offset) {
+                throw std::invalid_argument("proposal action range is invalid");
+            }
+            PlayerProposal proposal;
+            proposal.player = source.player;
+            proposal.first_sequence = source.first_sequence;
+            proposal.actions.reserve(source.action_count);
+            for (uint32_t offset = 0; offset < source.action_count; ++offset) {
+                const auto action = actions[source.action_offset + offset];
+                if (action > KT_HOLD) { throw std::invalid_argument("invalid action"); }
+                proposal.actions.push_back(static_cast<SemanticAction>(action));
+            }
+            batch.push_back(std::move(proposal));
+        }
+        runtime->value.submit_proposals(tick, batch);
     });
 }
 

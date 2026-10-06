@@ -10,7 +10,7 @@ Define a safe, measurable boundary for Python learning and evaluation code to co
 flowchart LR
     C[ C++ HeadlessRuntime ] -->|value snapshot| O[PlayerObservation]
     O --> P[Python learner / dataset / evaluator]
-    P -->|semantic action proposal| V[C++ validation]
+    P -->|batched semantic proposals| V[C++ validation]
     V --> C
 ```
 
@@ -33,7 +33,7 @@ Keep the C++ native baseline direct. Compare bridge candidates with the same wor
 | Persistent JSONL process | Simple isolation and existing project experience; amortizes startup | Serialization and pipe-copy overhead |
 | Shared memory | Potentially low copy cost for large batches | Synchronization, lifecycle, and debugging complexity |
 
-Do not spawn a process per decision. For persistent workers, use one process per independent runtime/worker. Batch calls only when doing so preserves the same tick and command semantics.
+Do not spawn a process per decision. For persistent workers, use one process per independent runtime/worker. Batch calls only when doing so preserves the same tick and command semantics. The C ABI offers `kt_observe_many()` and atomic `kt_submit_many()` for up to 64 players and 4096 total actions per tick.
 
 ## Benchmark protocol
 
@@ -43,7 +43,7 @@ The native baseline runner is `kadoka_tetris_runtime_benchmark`; the matching Py
 
 Measure Runtime startup separately from steady state. Report tick advancement alone, observation creation alone, and observation-plus-proposal round trip separately; interpreter startup is outside the current comparison. Warm up, repeat each case, and report median throughput (ticks/s, observations/s, decisions/s, and fixed-horizon games/s) plus a deterministic trace checksum. Candidate traces must match the native reference where semantics are intended to match.
 
-The first Windows Release comparison matched its deterministic trace but measured about 82× lower Python decision roundtrip throughput. The Python measurement includes snapshot conversion, policy selection and trace hashing. Optimize or batch this path and measure worker scaling before using this candidate for high-volume self-play; this single-machine result does not establish a cross-platform ratio.
+The first Windows Release comparison matched its deterministic trace but measured about 82× lower Python decision roundtrip throughput. After adding batched observation and submission, a paired serial-versus-batch run showed a 1.13× decision-roundtrip throughput improvement with identical traces. The Python measurement includes snapshot conversion, policy selection and trace hashing. Measure worker scaling before using this candidate for high-volume self-play; these single-machine ratios do not establish a cross-platform result.
 
 Keep native gameplay cost separate from bridge cost. Do not impose an arbitrary speed threshold; choose the simplest candidate that satisfies measured throughput, worker scaling, Windows distribution, and CI needs. Reconsider shared memory only if measurements show serialization/copying is the limiting cost.
 

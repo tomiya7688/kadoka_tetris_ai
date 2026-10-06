@@ -34,3 +34,7 @@
 ## Unreleased - 2026-10-06
 - Python learning bridgeとC++ Runtime baselineの同条件benchmarkを追加。トレースchecksum一致を比較条件とし、両者のthroughputと起動時間を分けて出力。
 - Windows Release・seed 123・8 players・500 ticks/playerでtraceが一致。decision roundtripはnative約365,551/s、Python約4,454/s（この計測条件で約82倍差）。
+
+## Unreleased - 2026-10-07
+- C++ Runtime/C ABIとPython learning bridgeにatomicな複数player batch APIを追加し、benchmarkでserial経路とのthroughputを比較。
+- Windows Release・seed 123・8 players・500 ticks/playerでserial/batch/nativeのtraceが一致。batchは同条件のserial比で約1.13倍のdecision roundtrip throughput。
