@@ -118,6 +118,22 @@ def choose_actions(observation, tick: int, player: int) -> list[str]:
     return [ACTION_NAMES[action_code]]
 
 
+# {
+#   責務: [hash_player_trace: 一player分の観測と提案をtrace checksumへ追加する]
+#   処理: [1: tickとplayerを追加する 2: 可視Observationを追加する 3: semantic proposalを追加する]
+#   引数: [checksum: 前回までのhash tick: 現在tick player: player番号 observation: 可視状態 actions: 提案action]
+#   戻り値: [更新後checksum]
+# }
+def hash_player_trace(checksum: int, tick: int, player: int, observation, actions: list[str]) -> int:
+    checksum = hash_integer(checksum, tick)
+    checksum = hash_integer(checksum, player)
+    checksum = hash_observation(checksum, observation)
+    checksum = hash_integer(checksum, len(actions))
+    for action in actions:
+        checksum = hash_integer(checksum, ACTION_CODES[action])
+    return checksum
+
+
 def run_python_trial(options: Options, *, batched: bool) -> dict:
     seeds = [options.seed + player for player in range(options.games)]
     startup_start = time.perf_counter()
@@ -126,6 +142,7 @@ def run_python_trial(options: Options, *, batched: bool) -> dict:
     observations_seconds = 0.0
     ticks_seconds = 0.0
     checksum = FNV_OFFSET
+    player_checksums = {player: FNV_OFFSET for player in range(options.games)}
     total_start = time.perf_counter()
     try:
         for tick in range(options.ticks):
@@ -138,13 +155,11 @@ def run_python_trial(options: Options, *, batched: bool) -> dict:
             observations_seconds += time.perf_counter() - observe_start
             proposals = []
             for player, observation in enumerate(observations):
-                checksum = hash_integer(checksum, tick)
-                checksum = hash_integer(checksum, player)
-                checksum = hash_observation(checksum, observation)
                 actions = choose_actions(observation, tick, player)
-                checksum = hash_integer(checksum, len(actions))
-                for action in actions:
-                    checksum = hash_integer(checksum, ACTION_CODES[action])
+                checksum = hash_player_trace(checksum, tick, player, observation, actions)
+                player_checksums[player] = hash_player_trace(
+                    player_checksums[player], tick, player, observation, actions
+                )
                 proposals.append((player, 0, actions))
 
             tick_start = time.perf_counter()
@@ -166,6 +181,7 @@ def run_python_trial(options: Options, *, batched: bool) -> dict:
         "tick_seconds": ticks_seconds,
         "total_seconds": total_seconds,
         "checksum": checksum,
+        "player_checksums": player_checksums,
     }
 
 
@@ -187,14 +203,10 @@ def run_worker_partition(task: tuple[Options, tuple[int, ...]]) -> tuple[tuple[i
             observations = runtime.observe_many()
             proposals = []
             for local_player, (player, observation) in enumerate(zip(player_slots, observations)):
-                checksum = hash_integer(player_checksums[player], tick)
-                checksum = hash_integer(checksum, player)
-                checksum = hash_observation(checksum, observation)
                 actions = choose_actions(observation, tick, player)
-                checksum = hash_integer(checksum, len(actions))
-                for action in actions:
-                    checksum = hash_integer(checksum, ACTION_CODES[action])
-                player_checksums[player] = checksum
+                player_checksums[player] = hash_player_trace(
+                    player_checksums[player], tick, player, observation, actions
+                )
                 proposals.append((local_player, 0, actions))
             runtime.submit_many(tick, proposals)
             processed_tick, _ = runtime.advance()
@@ -270,7 +282,7 @@ def run_worker_trial(
 #   戻り値: [worker別throughput、speedup、決定論的checksum]
 #   エラー: [worker数によってplayer traceが変わった場合はRuntimeError]
 # }
-def worker_scaling_result(options: Options) -> dict:
+def worker_scaling_result(options: Options, expected_checksum: int) -> dict:
     if options.workers == 1:
         return {
             "scope": "python_ctypes_thread_workers",
@@ -293,9 +305,12 @@ def worker_scaling_result(options: Options) -> dict:
         parallel_trials = [
             run_worker_trial(executor, options, options.workers) for _ in range(options.repeats)
         ]
-    expected_checksum = single_worker_trials[0]["checksum"]
-    if any(trial["checksum"] != expected_checksum for trial in single_worker_trials + parallel_trials):
-        raise RuntimeError("worker count changed the fixed-seed per-game trace")
+    worker_checksum = single_worker_trials[0]["checksum"]
+    if worker_checksum != expected_checksum or any(
+        trial["checksum"] != worker_checksum
+        for trial in single_worker_trials + parallel_trials
+    ):
+        raise RuntimeError("worker trace differs from the single-runtime Python bridge trace")
     single_worker_seconds = statistics.median(trial["wall_seconds"] for trial in single_worker_trials)
     parallel_seconds = statistics.median(trial["wall_seconds"] for trial in parallel_trials)
     return {
@@ -305,7 +320,7 @@ def worker_scaling_result(options: Options) -> dict:
         "ticks_per_game": options.ticks,
         "warmup": options.warmup,
         "repeats": options.repeats,
-        "trace_checksum": f"{expected_checksum:016x}",
+        "trace_checksum": f"{worker_checksum:016x}",
         "matching_worker_traces": True,
         "scaling_available": True,
         "single_worker_games_per_second": options.games / single_worker_seconds,
@@ -379,7 +394,8 @@ def run_comparison(options: Options) -> dict:
                 f"{native['trace_checksum']} != {bridges[name]['trace_checksum']}"
             )
     candidate = bridges["python_bridge"]
-    worker_scaling = worker_scaling_result(options)
+    reference_checksum = combined_player_checksum((tuple(sorted(trials[0]["player_checksums"].items())),))
+    worker_scaling = worker_scaling_result(options, reference_checksum)
     return {
         "configuration": {
             "seed": options.seed, "games": options.games, "ticks_per_game": options.ticks,

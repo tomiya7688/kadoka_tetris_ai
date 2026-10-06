@@ -48,4 +48,6 @@ This initial serial comparison showed about 82× lower Python decision roundtrip
 
 The paired serial-versus-batch mode uses the same workload for both Python paths. A Windows Release run on CPython 3.14.7 / MSVC 18.10.1 (seed 123, 8 players, 500 ticks/player, warmup 1, repeats 3) matched checksum `622275c1bca59bcc` in all three paths. Median Python decision roundtrips were 2,822/s serial and 3,199/s batched (1.13×); native was 283,746/s in that run. Treat these as one machine's measurements, not a portable speed promise.
 
+The worker comparison on the same seed and horizon matched the per-player trace checksum `1406759aaf9a2ba4` between one and four workers and with the single-Runtime Python path. One worker measured 9.43 fixed-horizon games/s; four workers measured 8.82 games/s (0.93×). This workload did not benefit from thread scaling. The worker checksum uses a stable per-player reduction, so it is expected to differ from the interleaved native checksum above.
+
 Record the source revision, compiler/build configuration, and machine alongside the JSON output when comparing runs. Compare values only across matching seeds, game count, tick count, build type, and workload. The implementation in `src/tetris/benchmark/runtime_bridge_benchmark.py` is a measurement harness, not a game/runtime dependency.
