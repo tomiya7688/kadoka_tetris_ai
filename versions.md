@@ -39,4 +39,4 @@
 - C++ Runtime/C ABIとPython learning bridgeにatomicな複数player batch APIを追加し、benchmarkでserial経路とのthroughputを比較。
 - Windows Release・seed 123・8 players・500 ticks/playerでserial/batch/nativeのtraceが一致。batchは同条件のserial比で約1.13倍のdecision roundtrip throughput。
 - コーディング規約とレビュー基準を明文化し、命名・責務・JSON-like宣言コメント・処理コメント・日本語仕様書・CI/E2E evidenceの確認項目を統一。
-- Python C ABI bridgeのthread worker scaling計測を追加。seed 123・8 games・500 ticks/player・1対4 workersではtraceが一致し、throughputは9.43対8.82 games/s（0.93倍）。
+- Python C ABI bridgeのthread worker scaling計測を追加。seed 123・8 games・500 ticks/player・1対4 workersではtraceが一致し、throughputは9.43対8.82 games/s（0.93倍）。thread起動時間を計測前に除外。

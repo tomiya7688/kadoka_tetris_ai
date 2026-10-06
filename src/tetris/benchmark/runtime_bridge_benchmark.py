@@ -7,6 +7,7 @@ import platform
 import statistics
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -276,8 +277,19 @@ def run_worker_trial(
 
 
 # {
+#   責務: [await_worker_pool_start: benchmark開始前に全worker threadの起動を揃える]
+#   処理: [1: barrier到着を最大30秒待つ 2: timeout時はthread pool初期化失敗を伝える]
+#   引数: [barrier: 全workerと呼び出し元が参加する同期barrier]
+#   戻り値: [barrierのparticipant index]
+#   エラー: [30秒以内に全workerが起動しない場合はBrokenBarrierError]
+# }
+def await_worker_pool_start(barrier: threading.Barrier) -> int:
+    return barrier.wait(timeout=30)
+
+
+# {
 #   責務: [worker_scaling_result: 同一条件の1 workerと複数workerを比較する]
-#   処理: [1: thread poolを用意する 2: warmup後に各条件を反復計測する 3: checksum一致を確認して中央値を返す]
+#   処理: [1: 全threadを起動する 2: warmup後に各条件を反復計測する 3: checksum一致を確認して中央値を返す]
 #   引数: [options: seed、games、ticks、反復数、worker数を含む設定]
 #   戻り値: [worker別throughput、speedup、決定論的checksum]
 #   エラー: [worker数によってplayer traceが変わった場合はRuntimeError]
@@ -296,6 +308,18 @@ def worker_scaling_result(options: Options, expected_checksum: int) -> dict:
             "reason": "worker scaling requires at least two games",
         }
     with ThreadPoolExecutor(max_workers=options.workers) as executor:
+        # 全workerを計測前に起動し、初回だけthread生成時間が乗る差を除きます。
+        start_barrier = threading.Barrier(options.workers + 1)
+        start_futures = [
+            executor.submit(await_worker_pool_start, start_barrier)
+            for _ in range(options.workers)
+        ]
+        try:
+            start_barrier.wait(timeout=30)
+            for future in start_futures:
+                future.result()
+        except threading.BrokenBarrierError as error:
+            raise RuntimeError("worker threads did not start within 30 seconds") from error
         for _ in range(options.warmup):
             run_worker_trial(executor, options, 1)
             run_worker_trial(executor, options, options.workers)
@@ -326,6 +350,7 @@ def worker_scaling_result(options: Options, expected_checksum: int) -> dict:
         "single_worker_games_per_second": options.games / single_worker_seconds,
         "parallel_games_per_second": options.games / parallel_seconds,
         "speedup": single_worker_seconds / parallel_seconds,
+        "worker_thread_startup_excluded": True,
         "runtime_creation_included": True,
     }
 
@@ -429,4 +454,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
