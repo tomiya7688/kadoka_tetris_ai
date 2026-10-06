@@ -9,7 +9,7 @@
 - Authoritative Source: `core/include/`, `core/src/`
 - C++ Tests: `tests_cpp/`
 - Migration reference only: `src/tetris/core/`, `tests/test_core.py`, `tests/test_game_state.py`
-- Docs: `docs/cpp-core-migration.md`, `docs/コーディングルール.md`
+- Docs: `docs/cpp-core-migration.md`, `docs/コーディング規約.md`, `docs/レビュー基準.md`
 - Validation: 対象CTest -> C++ core全体 -> parityに関係するPython test
 - Rule: 新しいゲームルールをPython coreだけへ追加しない
 
@@ -89,7 +89,7 @@ C++ Runtime、Python tooling/UI、PyInstallerまたは後続packaging、runtime 
 CI、ruff、CMake、checker、依存境界、開発ルール。
 
 - Source: `.github/workflows/`, `CMakeLists.txt`, `pyproject.toml`, `tools/kadoka_rule_checker.py`, `AGENTS.md`
-- Docs: `docs/コーディングルール.md`, `docs/sibling-project-alignment.md`, `docs/cpp-core-migration.md`, `docs/cpp-memory-safety.md`
+- Docs: `docs/コーディング規約.md`, `docs/レビュー基準.md`, `docs/sibling-project-alignment.md`, `docs/cpp-core-migration.md`, `docs/cpp-memory-safety.md`
 - Validation: checker -> C++ build/CTest -> compileall -> ruff -> unittest
 
 ## Broadening Rules
