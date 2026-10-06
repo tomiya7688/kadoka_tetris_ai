@@ -46,32 +46,54 @@ void HeadlessRuntime::submit_proposal(
     std::uint64_t first_sequence,
     const std::vector<SemanticAction>& actions
 ) {
-    if (player >= games_.size()) {
-        throw std::invalid_argument("command player is out of range");
-    }
-    if (tick < current_tick_) {
-        throw std::invalid_argument("command tick is in the past");
-    }
-    if (actions.empty()) {
-        return;
-    }
-    const auto last_offset = actions.size() - 1;
-    if (last_offset > std::numeric_limits<std::uint64_t>::max() - first_sequence) {
-        throw std::invalid_argument("proposal sequence range overflows");
-    }
-    for (const auto action : actions) {
-        if (semantic_action_name(action).empty()) {
-            throw std::invalid_argument("command action is invalid");
+    submit_proposals(tick, {{player, first_sequence, actions}});
+}
+
+void HeadlessRuntime::submit_proposals(
+    std::uint64_t tick,
+    const std::vector<PlayerProposal>& proposals
+) {
+    std::vector<SemanticCommand> additions;
+    for (const auto& proposal : proposals) {
+        if (proposal.player >= games_.size()) {
+            throw std::invalid_argument("command player is out of range");
         }
+        if (tick < current_tick_) {
+            throw std::invalid_argument("command tick is in the past");
+        }
+        if (proposal.actions.empty()) {
+            continue;
+        }
+        const auto last_offset = proposal.actions.size() - 1;
+        if (last_offset > std::numeric_limits<std::uint64_t>::max() - proposal.first_sequence) {
+            throw std::invalid_argument("proposal sequence range overflows");
+        }
+        for (std::size_t offset = 0; offset < proposal.actions.size(); ++offset) {
+            const auto action = proposal.actions[offset];
+            if (semantic_action_name(action).empty()) {
+                throw std::invalid_argument("command action is invalid");
+            }
+            const auto sequence = proposal.first_sequence + static_cast<std::uint64_t>(offset);
+            const auto duplicate = std::find_if(additions.begin(), additions.end(),
+                [&](const auto& command) {
+                    return command.player == proposal.player && command.sequence == sequence;
+                });
+            if (duplicate != additions.end()) {
+                throw std::invalid_argument("command sequence is duplicated for this player and tick");
+            }
+            additions.push_back({proposal.player, tick, sequence, action});
+        }
+    }
+    if (additions.empty()) {
+        return;
     }
 
     const auto queued = pending_.find(tick);
     if (queued != pending_.end()) {
-        for (std::size_t offset = 0; offset < actions.size(); ++offset) {
-            const auto sequence = first_sequence + static_cast<std::uint64_t>(offset);
-            const auto duplicate = std::find_if(
-                queued->second.begin(), queued->second.end(), [&](const auto& command) {
-                    return command.player == player && command.sequence == sequence;
+        for (const auto& addition : additions) {
+            const auto duplicate = std::find_if(queued->second.begin(), queued->second.end(),
+                [&](const auto& command) {
+                    return command.player == addition.player && command.sequence == addition.sequence;
                 });
             if (duplicate != queued->second.end()) {
                 throw std::invalid_argument("command sequence is duplicated for this player and tick");
@@ -79,18 +101,16 @@ void HeadlessRuntime::submit_proposal(
         }
     }
 
-    std::vector<SemanticCommand> commands;
-    commands.reserve(actions.size());
-    for (std::size_t offset = 0; offset < actions.size(); ++offset) {
-        commands.push_back({
-            player,
-            tick,
-            first_sequence + static_cast<std::uint64_t>(offset),
-            actions[offset],
-        });
+    std::vector<SemanticCommand> merged;
+    if (queued != pending_.end()) {
+        merged = queued->second;
     }
-    auto& destination = pending_[tick];
-    destination.insert(destination.end(), commands.begin(), commands.end());
+    merged.insert(merged.end(), additions.begin(), additions.end());
+    if (queued == pending_.end()) {
+        pending_.emplace(tick, std::move(merged));
+    } else {
+        queued->second = std::move(merged);
+    }
 }
 
 TickResult HeadlessRuntime::advance() {

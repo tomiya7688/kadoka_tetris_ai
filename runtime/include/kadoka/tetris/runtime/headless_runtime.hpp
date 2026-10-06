@@ -27,6 +27,12 @@ struct SemanticCommand {
     SemanticAction action{};
 };
 
+struct PlayerProposal {
+    std::size_t player{};
+    std::uint64_t first_sequence{};
+    std::vector<SemanticAction> actions;
+};
+
 struct TickResult {
     std::uint64_t tick{};
     std::size_t commands_processed{};
@@ -53,6 +59,8 @@ public:
         std::uint64_t tick,
         std::uint64_t first_sequence,
         const std::vector<SemanticAction>& actions);
+    // Validate every proposal and sequence as one transaction before queueing.
+    void submit_proposals(std::uint64_t tick, const std::vector<PlayerProposal>& proposals);
     [[nodiscard]] TickResult advance();
     [[nodiscard]] std::uint64_t current_tick() const noexcept { return current_tick_; }
     [[nodiscard]] std::size_t player_count() const noexcept { return games_.size(); }

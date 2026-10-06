@@ -32,7 +32,8 @@ class RuntimeBridgeBenchmarkTests(unittest.TestCase):
         report = json.loads(completed.stdout)
         self.assertTrue(report["matching_trace"])
         self.assertEqual(report["native"]["trace_checksum"], report["python_bridge"]["trace_checksum"])
+        self.assertEqual(report["native"]["trace_checksum"], report["python_serial_bridge"]["trace_checksum"])
         self.assertEqual(report["configuration"]["games"], 2)
         self.assertGreater(report["native"]["median_decision_roundtrips_per_second"], 0)
         self.assertGreater(report["python_bridge"]["median_decision_roundtrips_per_second"], 0)
-
+        self.assertGreater(report["batch_speedup_vs_serial_bridge"], 0)

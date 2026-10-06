@@ -102,7 +102,7 @@ def choose_actions(observation, tick: int, player: int) -> list[str]:
     return [ACTION_NAMES[action_code]]
 
 
-def run_python_trial(options: Options) -> dict:
+def run_python_trial(options: Options, *, batched: bool) -> dict:
     seeds = [options.seed + player for player in range(options.games)]
     startup_start = time.perf_counter()
     runtime = NativeRuntime(options.library, seeds)
@@ -113,11 +113,15 @@ def run_python_trial(options: Options) -> dict:
     total_start = time.perf_counter()
     try:
         for tick in range(options.ticks):
+            observe_start = time.perf_counter()
+            observations = (
+                runtime.observe_many()
+                if batched
+                else tuple(runtime.observe(player) for player in range(options.games))
+            )
+            observations_seconds += time.perf_counter() - observe_start
             proposals = []
-            for player in range(options.games):
-                observe_start = time.perf_counter()
-                observation = runtime.observe(player)
-                observations_seconds += time.perf_counter() - observe_start
+            for player, observation in enumerate(observations):
                 checksum = hash_integer(checksum, tick)
                 checksum = hash_integer(checksum, player)
                 checksum = hash_observation(checksum, observation)
@@ -125,11 +129,14 @@ def run_python_trial(options: Options) -> dict:
                 checksum = hash_integer(checksum, len(actions))
                 for action in actions:
                     checksum = hash_integer(checksum, ACTION_CODES[action])
-                proposals.append(actions)
+                proposals.append((player, 0, actions))
 
             tick_start = time.perf_counter()
-            for player, actions in enumerate(proposals):
-                runtime.submit(player, tick, 0, actions)
+            if batched:
+                runtime.submit_many(tick, proposals)
+            else:
+                for player, first_sequence, actions in proposals:
+                    runtime.submit(player, tick, first_sequence, actions)
             processed_tick, _ = runtime.advance()
             if processed_tick != tick:
                 raise RuntimeError("bridge returned an unexpected processed tick")
@@ -160,9 +167,9 @@ def rates(options: Options, observations: float, ticks: float, total: float) -> 
     }
 
 
-def python_result(options: Options, trials: list[dict]) -> dict:
+def python_result(options: Options, trials: list[dict], *, batched: bool) -> dict:
     result = {
-        "scope": "python_ctypes_bridge_candidate",
+        "scope": "python_ctypes_bridge_batched" if batched else "python_ctypes_bridge_serial",
         "seed": options.seed,
         "games": options.games,
         "ticks_per_game": options.ticks,
@@ -196,18 +203,20 @@ def native_result(options: Options) -> dict:
 
 def run_comparison(options: Options) -> dict:
     native = native_result(options)
-    trials = [run_python_trial(options) for _ in range(options.warmup)]
-    del trials
-    trials = [run_python_trial(options) for _ in range(options.repeats)]
-    checksums = {trial["checksum"] for trial in trials}
-    if len(checksums) != 1:
-        raise RuntimeError("fixed-seed Python bridge trace changed between repeats")
-    candidate = python_result(options, trials)
-    if candidate["trace_checksum"] != native["trace_checksum"]:
-        raise RuntimeError(
-            "native and Python bridge traces differ: "
-            f"{native['trace_checksum']} != {candidate['trace_checksum']}"
-        )
+    bridges = {}
+    for batched, name in ((False, "python_serial_bridge"), (True, "python_bridge")):
+        for _ in range(options.warmup):
+            run_python_trial(options, batched=batched)
+        trials = [run_python_trial(options, batched=batched) for _ in range(options.repeats)]
+        if len({trial["checksum"] for trial in trials}) != 1:
+            raise RuntimeError("fixed-seed Python bridge trace changed between repeats")
+        bridges[name] = python_result(options, trials, batched=batched)
+        if bridges[name]["trace_checksum"] != native["trace_checksum"]:
+            raise RuntimeError(
+                f"native and {name} traces differ: "
+                f"{native['trace_checksum']} != {bridges[name]['trace_checksum']}"
+            )
+    candidate = bridges["python_bridge"]
     return {
         "configuration": {
             "seed": options.seed, "games": options.games, "ticks_per_game": options.ticks,
@@ -215,7 +224,12 @@ def run_comparison(options: Options) -> dict:
         },
         "native": native,
         "python_bridge": candidate,
+        "python_serial_bridge": bridges["python_serial_bridge"],
         "matching_trace": True,
+        "batch_speedup_vs_serial_bridge": (
+            candidate["median_decision_roundtrips_per_second"]
+            / bridges["python_serial_bridge"]["median_decision_roundtrips_per_second"]
+        ),
         "roundtrip_slowdown_vs_native": (
             native["median_decision_roundtrips_per_second"]
             / candidate["median_decision_roundtrips_per_second"]
