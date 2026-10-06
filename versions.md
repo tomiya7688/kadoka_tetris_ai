@@ -30,3 +30,7 @@
 
 ## Unreleased - 2026-10-04
 - C ABI候補を利用するPython学習用APIを追加。immutableな可視snapshot、入力範囲検査、context managerによる解放、固定seed再現性を検証。
+
+## Unreleased - 2026-10-06
+- Python learning bridgeとC++ Runtime baselineの同条件benchmarkを追加。トレースchecksum一致を比較条件とし、両者のthroughputと起動時間を分けて出力。
+- Windows Release・seed 123・8 players・500 ticks/playerでtraceが一致。decision roundtripはnative約365,551/s、Python約4,454/s（この計測条件で約82倍差）。

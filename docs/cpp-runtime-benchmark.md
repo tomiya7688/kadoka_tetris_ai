@@ -1,6 +1,6 @@
 # C++ Headless Runtime Benchmark
 
-`kadoka_tetris_runtime_benchmark` records an initial native baseline for Issue #37. It exercises the C++ `HeadlessRuntime` directly and does not launch Python or claim transport/worker-scaling results.
+`kadoka_tetris_runtime_benchmark` records the C++ native baseline for Issue #37. The Python comparison runs the same policy and workload through the learning API, requires the trace checksums to match, and reports throughput separately. Both runners are serial: this comparison does not measure multi-worker scaling.
 
 ## Run
 
@@ -13,4 +13,33 @@ All parameters are bounded: games 1-64, ticks 1-1,000,000, warmup 0-10, and repe
 
 The executable prints one JSON object with the input configuration, median startup time, observation throughput, tick-advance throughput, full decision-roundtrip throughput, fixed-horizon episode throughput, and a trace checksum. Every measured repeat must produce the same checksum or the benchmark exits with an error. Warmup runs are excluded from reported medians.
 
-Record the source revision, compiler/build configuration, and machine alongside the JSON output when comparing runs. Compare values only across matching seeds, game count, tick count, build type, and workload. The baseline is serial; parallel worker scaling and Python transport overhead require separate future benchmark cases.
+## Compare the Python candidate
+
+Build both targets in Release, set `PYTHONPATH=src`, then run the wrapper with the matching DLL and baseline executable:
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m tetris.benchmark.runtime_bridge_benchmark `
+  --library build-cpp/Release/kadoka_tetris_bridge.dll `
+  --native-executable build-cpp/Release/kadoka_tetris_runtime_benchmark.exe `
+  --seed 123 --games 8 --ticks 5000 --warmup 2 --repeats 5
+```
+
+Linux paths are `build-cpp/libkadoka_tetris_bridge.so` and `build-cpp/kadoka_tetris_runtime_benchmark`. The command returns one JSON object containing the native and Python medians, per-stage rates, Python version/platform, matching checksum, and roundtrip slowdown. It fails if either runner is nondeterministic or their traces differ. The startup metric is Runtime construction, including the candidate's library load; it excludes starting the Python interpreter. The timed Python roundtrip includes immutable snapshot conversion, Python policy selection, checksum, ctypes submission, and C++ tick advance. Native measures the corresponding C++ policy and checksum without crossing the Python boundary.
+
+The policy can reach game over before the tick horizon, so a long run includes calls on terminal games. Treat rates as a fixed workload comparison, not as a measurement of full completed Tetris games. Run with identical seeds/options/build mode/machine and retain the emitted configuration with each result. Worker scaling still needs a separate benchmark.
+
+## Recorded comparison
+
+Local Windows 10 Release run, CPython 3.14.7 / MSVC 18.10.1; seed 123, 8 players, 500 ticks/player, warmup 2, repeats 5. The traces matched at `622275c1bca59bcc`.
+
+| Measure | Native C++ | Python ctypes |
+| --- | ---: | ---: |
+| Runtime startup (ms) | 0.003 | 0.436 |
+| Observations/s | 586,966 | 73,969 |
+| Tick advances/s | 2,510,040 | 23,112 |
+| Decision roundtrips/s | 365,551 | 4,454 |
+
+Python is about 82× slower on complete decision roundtrips in this workload. Its measured path includes immutable snapshot conversion, Python policy selection, and trace hashing, so this is the current learning call path rather than isolated foreign-function overhead. This is evidence to batch/optimize the bridge before high-volume self-play, not a universal platform ratio or an arbitrary transport threshold.
+
+Record the source revision, compiler/build configuration, and machine alongside the JSON output when comparing runs. Compare values only across matching seeds, game count, tick count, build type, and workload. The implementation in `src/tetris/benchmark/runtime_bridge_benchmark.py` is a measurement harness, not a game/runtime dependency.

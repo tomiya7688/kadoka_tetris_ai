@@ -69,7 +69,8 @@ AIへ渡す観測、可視化用観測。
 
 CPU評価、weight sweep、計測。
 
-- Runtime benchmark: C++
+- Runtime baseline: C++; matching Python bridge comparator: `src/tetris/benchmark/runtime_bridge_benchmark.py`
+- Benchmark test: `tests/test_runtime_bridge_benchmark.py`; CI supplies the built DLL/SO and native executable
 - 学習・集計・可視化: Python
 - Source: `benchmarks_cpp/`, `src/tetris/benchmark/`, 関連AI実装
 - Docs: `docs/cpp-runtime-benchmark.md`, `docs/python-learning-bridge.md`

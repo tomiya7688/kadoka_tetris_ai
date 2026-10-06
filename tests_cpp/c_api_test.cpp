@@ -140,6 +140,39 @@ void check_multiple_players() {
     require(kt_observe(owner.get(), 1, &second, sizeof(second)) == KT_OK && second.pieces_locked == 1);
 }
 
+void check_benchmark_policy_parity() {
+    const std::vector<uint64_t> seeds{123, 124};
+    kt_runtime* pointer = nullptr;
+    require(kt_create(seeds.data(), static_cast<uint32_t>(seeds.size()), &pointer) == KT_OK);
+    Owner owner(pointer, kt_destroy);
+    HeadlessRuntime native(seeds);
+    for (uint64_t tick = 0; tick < 96; ++tick) {
+        for (uint32_t player = 0; player < seeds.size(); ++player) {
+            const auto expected = native.observe(player);
+            auto actual = observe(owner);
+            if (player != 0) {
+                require(kt_observe(owner.get(), player, &actual, sizeof(actual)) == KT_OK);
+            }
+            check_snapshot(actual, expected);
+            std::vector<SemanticAction> native_actions;
+            if (!expected.game_over && expected.active_piece) {
+                const auto choice = (tick + player + expected.pieces_locked) % 7U;
+                native_actions.push_back(static_cast<SemanticAction>(choice));
+            }
+            std::vector<uint8_t> actions;
+            for (const auto action : native_actions) { actions.push_back(static_cast<uint8_t>(action)); }
+            require(kt_submit(owner.get(), player, tick, 0,
+                actions.empty() ? nullptr : actions.data(), static_cast<uint32_t>(actions.size())) == KT_OK);
+            native.submit_proposal(player, tick, 0, native_actions);
+        }
+        uint64_t actual_tick = 0;
+        uint64_t actual_commands = 0;
+        require(kt_advance(owner.get(), &actual_tick, &actual_commands) == KT_OK);
+        const auto expected = native.advance();
+        require(actual_tick == expected.tick && actual_commands == expected.commands_processed);
+    }
+}
+
 }  // namespace
 
 int main() {
@@ -148,6 +181,7 @@ int main() {
         check_invalid_inputs();
         check_native_parity_and_lifetime();
         check_multiple_players();
+        check_benchmark_policy_parity();
     } catch (const std::exception& error) {
         std::cerr << error.what() << '\n';
         return 1;
