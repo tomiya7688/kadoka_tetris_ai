@@ -24,7 +24,8 @@ The legacy Python core under `src/tetris/core/` is a migration reference until e
 ## Source of Truth
 
 - Repository working rules: `AGENTS.md`
-- Coding rules: `docs/コーディングルール.md`
+- Coding rules: `docs/コーディング規約.md`
+- Review criteria: `docs/レビュー基準.md`
 - C++ migration policy: `docs/cpp-core-migration.md`
 - Context/validation routing and project map: `docs/context-routing.md`
 - Sibling-project policy: `docs/sibling-project-alignment.md`
