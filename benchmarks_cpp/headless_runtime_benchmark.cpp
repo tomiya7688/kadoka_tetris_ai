@@ -97,19 +97,22 @@ void hash_integer(std::uint64_t& hash, std::uint64_t value) {
     }
 }
 
+void hash_cells(std::uint64_t& hash, std::vector<kadoka::tetris::Position> cells) {
+    std::sort(cells.begin(), cells.end(), [](const auto left, const auto right) {
+        return left.y == right.y ? left.x < right.x : left.y < right.y;
+    });
+    hash_integer(hash, cells.size());
+    for (const auto cell : cells) {
+        hash_integer(hash, static_cast<std::uint64_t>(cell.x));
+        hash_integer(hash, static_cast<std::uint64_t>(cell.y));
+    }
+}
+
 void hash_observation(std::uint64_t& hash, const PlayerObservation& observation) {
     hash_integer(hash, static_cast<std::uint64_t>(observation.board.width));
     hash_integer(hash, static_cast<std::uint64_t>(observation.board.height));
-    hash_integer(hash, observation.board.locked_cells.size());
-    for (const auto cell : observation.board.locked_cells) {
-        hash_integer(hash, static_cast<std::uint64_t>(cell.x));
-        hash_integer(hash, static_cast<std::uint64_t>(cell.y));
-    }
-    hash_integer(hash, observation.board.active_cells.size());
-    for (const auto cell : observation.board.active_cells) {
-        hash_integer(hash, static_cast<std::uint64_t>(cell.x));
-        hash_integer(hash, static_cast<std::uint64_t>(cell.y));
-    }
+    hash_cells(hash, observation.board.locked_cells);
+    hash_cells(hash, observation.board.active_cells);
 
     hash_integer(hash, observation.active_piece.has_value());
     if (observation.active_piece) {

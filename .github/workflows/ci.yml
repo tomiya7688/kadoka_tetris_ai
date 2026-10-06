@@ -68,6 +68,7 @@ jobs:
     env:
       PYTHONPATH: ${{ github.workspace }}/src
       KADOKA_TETRIS_BRIDGE: ${{ github.workspace }}/build-cpp/libkadoka_tetris_bridge.so
+      KADOKA_TETRIS_NATIVE_BENCHMARK: ${{ github.workspace }}/build-cpp/kadoka_tetris_runtime_benchmark
 
     steps:
       - name: Check out repository

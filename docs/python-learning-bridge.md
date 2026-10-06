@@ -39,9 +39,11 @@ Do not spawn a process per decision. For persistent workers, use one process per
 
 Compare candidates using the same Release C++ build, fixed seed set, game configuration, and deterministic policy/input workload. Record the source revision and machine/build configuration with results.
 
-The initial native baseline runner is `kadoka_tetris_runtime_benchmark`; its bounded CLI and emitted measurements are documented in `docs/cpp-runtime-benchmark.md`. It measures serial headless workloads and does not claim parallel worker scaling or compare a Python transport that is not implemented yet.
+The native baseline runner is `kadoka_tetris_runtime_benchmark`; the matching Python C ABI comparison is `src/tetris/benchmark/runtime_bridge_benchmark.py`. Their bounded CLI and measurements are documented in `docs/cpp-runtime-benchmark.md`. The comparison fails on trace mismatch and measures serial headless workloads; it does not claim parallel worker scaling.
 
-Measure startup separately from steady state. Report tick advancement alone, observation creation alone, and observation-plus-proposal round trip separately. Run both single-worker and multi-worker cases; warm up, repeat each case, and report median throughput (ticks/s, observations/s, decisions/s, and games/s) plus a deterministic trace checksum. Candidate traces must match the native reference where semantics are intended to match.
+Measure Runtime startup separately from steady state. Report tick advancement alone, observation creation alone, and observation-plus-proposal round trip separately; interpreter startup is outside the current comparison. Warm up, repeat each case, and report median throughput (ticks/s, observations/s, decisions/s, and fixed-horizon games/s) plus a deterministic trace checksum. Candidate traces must match the native reference where semantics are intended to match.
+
+The first Windows Release comparison matched its deterministic trace but measured about 82× lower Python decision roundtrip throughput. The Python measurement includes snapshot conversion, policy selection and trace hashing. Optimize or batch this path and measure worker scaling before using this candidate for high-volume self-play; this single-machine result does not establish a cross-platform ratio.
 
 Keep native gameplay cost separate from bridge cost. Do not impose an arbitrary speed threshold; choose the simplest candidate that satisfies measured throughput, worker scaling, Windows distribution, and CI needs. Reconsider shared memory only if measurements show serialization/copying is the limiting cost.
 
