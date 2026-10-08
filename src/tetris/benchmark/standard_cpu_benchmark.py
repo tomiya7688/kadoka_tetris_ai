@@ -23,9 +23,21 @@ from .result import (
 )
 
 
+# {
+# 責務: [StandardCpuBenchmark: 可視情報だけを使う標準CPUの単独ゲームをheadlessで評価する]
+# フィールド: [profile / level: CPU難易度設定, max_pieces / max_ticks_per_piece: 実行上限, weights: 評価重み, observer: 可視盤面取得]
+# 処理: [seed別のゲーム結果、火力、盤面品質、CPU判断時間を測定する]
+# }
 class StandardCpuBenchmark:
     """Run reproducible standard-CPU games without opening the GUI."""
 
+    # {
+    # 責務: [__init__: 標準CPUベンチマークの難易度と1ゲームあたりの上限を設定する]
+    # 処理: [piece/tick上限を検証し、CPU profile、評価重み、可視Observerを保持する]
+    # 引数: [self: 初期化するrunner, level: CPU難易度, max_pieces: 最大配置数, max_ticks_per_piece: 1配置あたりのtick上限, weights: 盤面評価重み]
+    # 戻り値: なし
+    # エラー: piece/tick上限が正の整数でない場合にValueErrorを送出する
+    # }
     def __init__(
         self,
         level: str,
@@ -49,6 +61,13 @@ class StandardCpuBenchmark:
         self.weights = weights or VisibleBoardWeights()
         self.observer = VisiblePlayerObserver()
 
+    # {
+    # 責務: [run: 連続seedの複数ゲームを実行し、条件と結果をreportへまとめる]
+    # 処理: [game_countとseedを検証し、seed + indexで各ゲームを実行してCPU設定をsnapshotにする]
+    # 引数: [self: runner設定, game_count: 実行ゲーム数, seed: 最初のゲームseed]
+    # 戻り値: profile、evaluator、seed別game resultを含むCpuBenchmarkReport
+    # エラー: game_countが正の整数でない場合、seedが整数でない場合にValueErrorを送出する
+    # }
     def run(self, game_count: int = 1, seed: int = 0) -> CpuBenchmarkReport:
         if not isinstance(game_count, int) or isinstance(game_count, bool) or game_count < 1:
             raise ValueError("game_count must be a positive integer")
@@ -78,6 +97,12 @@ class StandardCpuBenchmark:
             games=games,
         )
 
+    # {
+    # 責務: [_run_game: 固定seedの1ゲームをheadlessで実行し、成績と盤面品質を計測する]
+    # 処理: [AI判断時間とtickを計測し、hard dropごとの攻撃・盤面指標を集計して上限またはgame overで停止する]
+    # 引数: [self: runner設定, seed: ゲームを再現する初期seed]
+    # 戻り値: placements、lines、attack、board metrics、decision timingを含むCpuBenchmarkGameResult
+    # }
     def _run_game(self, seed: int) -> CpuBenchmarkGameResult:
         game = GameState(seed=seed)
         engine = TickEngine({0: game})
@@ -103,6 +128,7 @@ class StandardCpuBenchmark:
         final_metrics = VisibleBoardMetrics(0, 0, 0)
         tick_limit = self.max_pieces * self.max_ticks_per_piece
 
+        # 長時間停止しないよう、配置数と全体tickの両方に上限を設ける。
         while placements < self.max_pieces and not game.game_over and ticks < tick_limit:
             decision_started = perf_counter()
             action = controller.choose_action(game)
@@ -115,6 +141,7 @@ class StandardCpuBenchmark:
             engine.advance()
             ticks += 1
 
+            # 盤面品質と配置数は、ミノがlockされたhard dropの後だけ記録する。
             if not hard_drop:
                 continue
 
