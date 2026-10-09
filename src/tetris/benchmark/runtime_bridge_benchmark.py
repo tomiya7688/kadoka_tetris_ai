@@ -71,6 +71,12 @@ def parse_args(argv: list[str] | None = None) -> Options:
     )
 
 
+# {
+#   責務: [hash_integer: 符号なし64bit整数を固定byte順でFNV checksumへ追加する]
+#   処理: [整数を下位byteから8byteに分け、各byteをchecksumへ順に畳み込む]
+#   引数: [checksum: 更新前のuint64 checksum value: 追加する整数]
+#   戻り値: [更新後のuint64 checksum]
+# }
 def hash_integer(checksum: int, value: int) -> int:
     for byte_index in range(8):
         checksum ^= (value >> (byte_index * 8)) & 0xFF
@@ -78,6 +84,13 @@ def hash_integer(checksum: int, value: int) -> int:
     return checksum
 
 
+# {
+#   責務: [hash_observation: 可視Observationの状態を再現性確認用checksumへ追加する]
+#   処理: [盤面寸法、占有cell座標、active/hold、next queue、公開ゲーム指標を固定順で追加する]
+#   引数: [checksum: 更新前のchecksum observation: Runtimeが返した可視状態]
+#   戻り値: [観測内容を反映したchecksum]
+#   補足: [隠し乱数状態や未公開の将来ツモは読み取らない]
+# }
 def hash_observation(checksum: int, observation) -> int:
     checksum = hash_integer(checksum, 10)
     checksum = hash_integer(checksum, 20)
@@ -112,6 +125,13 @@ def hash_observation(checksum: int, observation) -> int:
     return checksum
 
 
+# {
+#   責務: [choose_actions: benchmark負荷用に可視状態とtickから決定的action列を作る]
+#   処理: [game overまたはactive pieceなしなら空列、その他はtick・player・配置数でactionを選ぶ]
+#   引数: [observation: 公開盤面情報 tick: 現在の整数tick player: player番号]
+#   戻り値: [bridgeへ提出するsemantic action名のlist]
+#   補足: [測定用の決定的な入力生成であり、評価関数型CPU AIではない]
+# }
 def choose_actions(observation, tick: int, player: int) -> list[str]:
     if observation.game_over or observation.active_kind is None:
         return []
