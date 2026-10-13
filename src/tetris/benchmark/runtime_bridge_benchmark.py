@@ -375,10 +375,24 @@ def worker_scaling_result(options: Options, expected_checksum: int) -> dict:
     }
 
 
+# {
+#   責務: [median: trial列の指定数値を集めて中央値を返す]
+#   処理: [各trialからfield値を取り出しstatistics.medianで代表値を計算する]
+#   引数: [trials: 計測結果のlist field: 中央値を求める数値key]
+#   戻り値: [指定fieldの中央値]
+#   エラー: [trialsが空ならStatisticsError、各trialにfieldがなければKeyErrorを送出する]
+# }
 def median(trials: list[dict], field: str) -> float:
     return statistics.median(trial[field] for trial in trials)
 
 
+# {
+#   責務: [rates: bridge計測時間から各処理のthroughputを算出する]
+#   処理: [ゲーム数とtick数からdecision数を求め、observe・tick・全体時間で割る]
+#   引数: [options: workloadのgames/ticks設定 observations: observe合計秒 ticks: tick進行合計秒 total: decision loop合計秒]
+#   戻り値: [observation/s、tick advance/s、decision roundtrip/s、episode/sの辞書]
+#   補足: [計測時間が0秒の場合は該当throughputを0にする]
+# }
 def rates(options: Options, observations: float, ticks: float, total: float) -> dict:
     decisions = options.games * options.ticks
     return {
@@ -389,6 +403,13 @@ def rates(options: Options, observations: float, ticks: float, total: float) -> 
     }
 
 
+# {
+#   責務: [python_result: Python bridge反復計測を条件・中央値・checksum付き結果へ変換する]
+#   処理: [serial/batched経路を識別し、計測条件、起動時間中央値、trace checksum、環境情報、throughputを集約する]
+#   引数: [options: 固定seedとworkload設定 trials: 同条件の反復計測結果 batched: batch APIを使った計測か]
+#   戻り値: [native結果と比較できるPython bridge benchmark辞書]
+#   エラー: [trialsが空、または必要な計測keyがない場合は集計時の例外を伝える]
+# }
 def python_result(options: Options, trials: list[dict], *, batched: bool) -> dict:
     result = {
         "scope": "python_ctypes_bridge_batched" if batched else "python_ctypes_bridge_serial",
