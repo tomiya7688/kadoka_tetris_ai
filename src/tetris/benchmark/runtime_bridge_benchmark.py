@@ -438,6 +438,13 @@ def python_result(options: Options, trials: list[dict], *, batched: bool) -> dic
     return result
 
 
+# {
+#   責務: [native_result: C++ native benchmark executableを実行し結果JSONを取得する]
+#   処理: [同じseedとworkload上限を渡し、120秒以内に完了したstdoutをJSONとして読みchecksum形式を検証する]
+#   引数: [options: executable pathと再現可能なbenchmark設定]
+#   戻り値: [native benchmarkが出力したJSON結果辞書]
+#   エラー: [実行失敗・timeout・不正JSON・必須key不足を伝え、checksum形式が不正ならRuntimeErrorを送出する]
+# }
 def native_result(options: Options) -> dict:
     arguments = [
         str(options.native_executable), "--seed", str(options.seed),
@@ -451,6 +458,13 @@ def native_result(options: Options) -> dict:
     return result
 
 
+# {
+#   責務: [run_comparison: native、Python serial/batch bridge、thread workerの計測結果を比較する]
+#   処理: [1: native結果を得る 2: Python各経路をwarmup/repeatsで実行する 3: repeat間とnative間のtrace一致を検証する 4: worker scalingを計測し速度指標をまとめる]
+#   引数: [options: 全経路で共有するseed、games、ticks、warmup、repeats、worker数]
+#   戻り値: [各経路の結果、共通設定、trace一致、batch speedup、native比roundtrip slowdownを含む辞書]
+#   エラー: [同一設定のtraceがrepeat間またはnative結果と異なる場合にRuntimeErrorを送出する]
+# }
 def run_comparison(options: Options) -> dict:
     native = native_result(options)
     bridges = {}
