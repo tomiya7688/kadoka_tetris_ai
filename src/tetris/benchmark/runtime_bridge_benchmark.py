@@ -38,6 +38,13 @@ class Options:
     native_executable: Path
 
 
+# {
+#   責務: [parse_args: CLI入力を検証しruntime bridge benchmarkのOptionsを組み立てる]
+#   処理: [1: 必須artifact pathとworkload値を読む 2: seed/games/ticks/warmup/repeatsを範囲検証する 3: games数に応じworker数を決める 4: artifact pathを存在確認付きで解決する]
+#   引数: [argv: parseするCLI引数列。Noneなら通常のprocess引数を読む]
+#   戻り値: [検証済み実行条件とartifact pathを持つOptions]
+#   エラー: [必須値不足・数値範囲違反・worker条件違反はargparseがSystemExitを送出し、pathが解決できない場合はOSErrorを伝える]
+# }
 def parse_args(argv: list[str] | None = None) -> Options:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--library", type=Path, required=True)
