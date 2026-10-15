@@ -512,6 +512,14 @@ def run_comparison(options: Options) -> dict:
     }
 
 
+# {
+#   責務: [main: CLI引数を処理してruntime bridge比較結果をJSONで出力する]
+#   処理: [1: 引数からOptionsを作る 2: native・Python bridge・worker計測を実行する 3: 結果をJSON出力し終了コードを返す]
+#   引数: [argv: parseするCLI引数列。Noneならprocess引数を読む]
+#   戻り値: [成功時は0、benchmark実行時の対応例外を捕捉した場合は2]
+#   副作用: [標準出力へ結果JSON、失敗時は標準エラーへエラーメッセージを出力する]
+#   エラー: [parse_argsの入力不正によるSystemExitはargparseのCLI制御として伝播する]
+# }
 def main(argv: list[str] | None = None) -> int:
     try:
         result = run_comparison(parse_args(argv))
