@@ -162,6 +162,14 @@ def hash_player_trace(checksum: int, tick: int, player: int, observation, action
     return checksum
 
 
+# {
+#   責務: [run_python_trial: 一回のPython bridge benchmarkで起動・観測・tick進行を計測する]
+#   処理: [1: player別seedでRuntimeを生成する 2: serialまたはbatch APIで観測と提案提出を繰り返す 3: 観測時間・tick時間・全体時間とtrace checksumを返す]
+#   引数: [options: seed、games、ticks、libraryを含む実行設定 batched: batch APIを使用するか]
+#   戻り値: [startup_seconds、observation_seconds、tick_seconds、total_seconds、全体checksum、player別checksum]
+#   副作用: [C ABI Runtimeを生成して利用し、処理終了時にcloseする]
+#   エラー: [Runtime生成・操作・tick不一致時の例外を呼び出し元へ伝える]
+# }
 def run_python_trial(options: Options, *, batched: bool) -> dict:
     seeds = [options.seed + player for player in range(options.games)]
     startup_start = time.perf_counter()
