@@ -180,6 +180,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     ).run()
 
 
+# {
+#   責務: [_run_versus: 人間同士または人間対CPUのversus画面を起動する]
+#   処理: [1: versus非対応のlocalhost APIと通常CPU指定を拒否する 2: 指定時はConfigから重みを読みversus用CPU strategyを作る 3: binding・garbage seed・CPUをversus appへ渡す]
+#   引数: [args: parserが検証したversus mode設定 bindings: player別入力割当 config_dir: CPU設定の保存先]
+#   戻り値: [PygameVersusApp.runが返す終了コード]
+#   副作用: [versus用GUIを起動し、必要なら標準CPU設定を読み込む]
+#   エラー: [localhost APIまたは通常CPU指定時はValueErrorを送出し、設定読み込み・GUI起動の例外は伝播する]
+# }
 def _run_versus(
     args: argparse.Namespace,
     bindings,
