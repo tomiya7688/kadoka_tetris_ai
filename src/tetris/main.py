@@ -26,6 +26,13 @@ from tetris.input_config import load_keyboard_bindings
 from tetris.runtime_paths import ensure_user_data
 
 
+# {
+#   責務: [build_parser: アプリ実行・対戦・benchmark用のCLI引数を定義する]
+#   処理: [1: smoke test、player、API、CPU、versusの引数を登録する 2: 排他的なbenchmark modeと共通計測条件を登録する 3: parserを返す]
+#   引数: [なし]
+#   戻り値: [選択肢・既定値・相互排他条件を設定したArgumentParser]
+#   エラー: [不正な引数はparse_args実行時にargparseがusageを表示してSystemExitを送出する]
+# }
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="KadokaTetrisAI")
     parser.add_argument(
