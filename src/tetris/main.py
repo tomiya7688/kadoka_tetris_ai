@@ -136,6 +136,14 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+# {
+#   責務: [main: 設定とCLI選択に応じてbenchmark・smoke test・通常プレイを起動する]
+#   処理: [1: 引数を解析する 2: UserDataとCPU設定を初期化する 3: benchmark modeを先に実行する 4: 入力bindingを読み、smoke test・versus・通常画面へ分岐する]
+#   引数: [argv: parseするCLI引数列。Noneならprocess引数を使う]
+#   戻り値: [選択したmodeまたはPygameAppが返す終了コード]
+#   副作用: [UserData/Configを初期化し、選択modeに応じてbenchmark出力、API serverまたはGUIを実行する]
+#   エラー: [argparseのSystemExitおよび初期化・mode実行中の例外を呼び出し元へ伝える]
+# }
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     user_data = ensure_user_data(args.data_root)
