@@ -212,6 +212,14 @@ def _run_versus(
     ).run()
 
 
+# {
+#   責務: [_run_cpu_benchmark: 選択された標準CPU benchmarkを実行して結果を保存する]
+#   処理: [1: UserDataのConfigから標準CPU重みを読み込む 2: 指定されたversus・weight sweep・全CPU比較・単一CPUのbenchmarkを選ぶ 3: 共通のゲーム数とseedで実行する 4: 結果をJSONへ変換して出力先へ保存し標準出力にも表示する]
+#   引数: [args: parserが検証したbenchmark modeと計測条件 user_data: UserDataのルートパス]
+#   戻り値: [結果ファイルの保存後に返す終了コード0]
+#   副作用: [CPU設定を読み込みbenchmarkを実行し、必要なら出力先directoryを作成してJSONを書き標準出力へ表示する]
+#   エラー: [設定読み込み・benchmark実行・directory作成・ファイル書き込みで発生した例外を伝播する]
+# }
 def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
     cpu_config = load_standard_cpu_config(user_data / "Config")
     default_filename = "cpu-benchmark.json"
