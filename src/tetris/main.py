@@ -264,6 +264,14 @@ def _run_cpu_benchmark(args: argparse.Namespace, user_data: Path) -> int:
     return 0
 
 
+# {
+#   責務: [_run_smoke_test: 指定されたlocalhost APIの起動と終了を確認する]
+#   処理: [1: API port未指定なら何も起動せず成功を返す 2: 指定時はplayerを許可するJSONL API serverを作って起動する 3: serverを終了して成功を返す]
+#   引数: [api_port: 起動確認するlocalhost APIのport。Noneならserverを起動しない player: API入力を許可するplayer番号]
+#   戻り値: [確認処理が完了したときの終了コード0]
+#   副作用: [port指定時にlocalhost API serverを起動して終了する]
+#   エラー: [serverの起動・終了で発生した例外を呼び出し元へ伝播する]
+# }
 def _run_smoke_test(api_port: int | None, player: int) -> int:
     if api_port is None:
         return 0
