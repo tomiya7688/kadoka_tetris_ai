@@ -8,6 +8,11 @@
 
 namespace kadoka::tetris {
 
+// {
+//   責務: [Board: 盤面寸法と占有セルを保持し、配置・固定・行消去・garbage反映を提供する]
+//   フィールド: [width_: 盤面の列数 visible_height_: 表示領域の行数 hidden_rows_: 表示領域より上の隠し行数 height_: 隠し行を含む総行数 cells_: 行優先で保持する占有セル]
+//   処理: [盤面座標を検証し、Tetrominoの配置可能性を判定してセル状態を更新する]
+ // }
 class Board {
 public:
     explicit Board(int width = 10, int visible_height = 20, int hidden_rows = 2);
