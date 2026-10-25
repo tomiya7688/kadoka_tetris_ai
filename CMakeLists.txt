@@ -67,33 +67,37 @@ target_link_libraries(kadoka_tetris_runtime_benchmark PRIVATE kadoka_tetris_runt
 include(CTest)
 
 if(BUILD_TESTING)
-    add_executable(kadoka_tetris_c_api_tests tests_cpp/c_api_test.cpp)
-    target_link_libraries(kadoka_tetris_c_api_tests PRIVATE kadoka_tetris_bridge kadoka_tetris_runtime)
-    add_test(NAME kadoka_tetris_c_api_tests COMMAND kadoka_tetris_c_api_tests)
+    # {
+    #   責務: [kadoka_add_cpp_test: assert検査を有効にしたC++テストをCTestへ登録する]
+    #   処理: [1: 実行ファイルを定義する 2: テストだけでNDEBUGを解除する 3: 必要なlibraryを接続してCTestへ登録する]
+    #   引数: [target_name: テスト名 source_file: テストのsource ARGN: 接続するlibraryの一覧]
+    #   戻り値: [なし]
+    # }
+    function(kadoka_add_cpp_test target_name source_file)
+        add_executable(${target_name} ${source_file})
+        if(MSVC)
+            target_compile_options(${target_name} PRIVATE /UNDEBUG)
+        else()
+            target_compile_options(${target_name} PRIVATE -UNDEBUG)
+        endif()
+        if(ARGN)
+            target_link_libraries(${target_name} PRIVATE ${ARGN})
+        endif()
+        add_test(NAME ${target_name} COMMAND ${target_name})
+    endfunction()
 
-    add_executable(kadoka_tetris_core_tests
-        tests_cpp/core_board_test.cpp
-    )
-    target_link_libraries(kadoka_tetris_core_tests PRIVATE kadoka_tetris_core)
-    add_test(NAME kadoka_tetris_core_tests COMMAND kadoka_tetris_core_tests)
-
-    add_executable(kadoka_tetris_game_state_tests
-        tests_cpp/game_state_test.cpp
-    )
-    target_link_libraries(kadoka_tetris_game_state_tests PRIVATE kadoka_tetris_core)
-    add_test(NAME kadoka_tetris_game_state_tests COMMAND kadoka_tetris_game_state_tests)
-
-    add_executable(kadoka_tetris_headless_runtime_tests
-        tests_cpp/headless_runtime_test.cpp
-    )
-    target_link_libraries(kadoka_tetris_headless_runtime_tests PRIVATE kadoka_tetris_runtime)
-    add_test(NAME kadoka_tetris_headless_runtime_tests COMMAND kadoka_tetris_headless_runtime_tests)
-
-    add_executable(kadoka_tetris_observation_tests
-        tests_cpp/observation_test.cpp
-    )
-    target_link_libraries(kadoka_tetris_observation_tests PRIVATE kadoka_tetris_runtime)
-    add_test(NAME kadoka_tetris_observation_tests COMMAND kadoka_tetris_observation_tests)
+    kadoka_add_cpp_test(kadoka_tetris_assertions_enabled_tests
+        tests_cpp/assertions_enabled_test.cpp)
+    kadoka_add_cpp_test(kadoka_tetris_c_api_tests tests_cpp/c_api_test.cpp
+        kadoka_tetris_bridge kadoka_tetris_runtime)
+    kadoka_add_cpp_test(kadoka_tetris_core_tests tests_cpp/core_board_test.cpp
+        kadoka_tetris_core)
+    kadoka_add_cpp_test(kadoka_tetris_game_state_tests tests_cpp/game_state_test.cpp
+        kadoka_tetris_core)
+    kadoka_add_cpp_test(kadoka_tetris_headless_runtime_tests tests_cpp/headless_runtime_test.cpp
+        kadoka_tetris_runtime)
+    kadoka_add_cpp_test(kadoka_tetris_observation_tests tests_cpp/observation_test.cpp
+        kadoka_tetris_runtime)
 
     add_test(
         NAME kadoka_tetris_runtime_benchmark_smoke
