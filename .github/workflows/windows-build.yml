@@ -32,7 +32,15 @@ jobs:
           cache: pip
           cache-dependency-path: requirements-build.txt
 
-      - name: Configure C++ core
+      - name: Bootstrap and audit Python CA bundles
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r requirements-security.txt
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python tools/audit_python_trust.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Configure C++ targets
         shell: cmd
         run: cmake -S . -B build-cpp -DBUILD_TESTING=ON
 
