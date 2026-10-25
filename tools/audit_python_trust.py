@@ -47,8 +47,15 @@ def audit_bundle(path: Path) -> dict:
     )
     if not certificates_pem:
         raise ValueError("No PEM certificates in CA bundle")
+    if any(
+        bundle.count(marker) != len(certificates_pem)
+        for marker in (b"-----BEGIN CERTIFICATE-----", b"-----END CERTIFICATE-----")
+    ):
+        raise ValueError("Unbalanced PEM certificate delimiters")
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    context.load_verify_locations(cadata=b"\n".join(certificates_pem).decode("ascii"))
+    context.load_verify_locations(
+        cadata=(b"\n".join(certificates_pem) + b"\n").decode("ascii")
+    )
     certificates = context.get_ca_certs(binary_form=True)
     blocked = blocked_roots(certificates)
     return {

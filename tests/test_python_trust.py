@@ -155,6 +155,14 @@ class PythonTrustTests(unittest.TestCase):
         self.assertEqual(report["status"], "PASS")
         self.assertGreater(report["ca_count"], 0)
         self.assertEqual(report["sha256"], hashlib.sha256(bundle).hexdigest())
+        # 有効な証明書の後に壊れたブロックがあっても無視してPASSにしない。
+        with patch.object(
+            Path,
+            "read_bytes",
+            return_value=bundle + b"\n-----BEGIN CERTIFICATE-----\ntruncated",
+        ):
+            with self.assertRaises(ValueError):
+                audit.audit_bundle(Path(__file__))
 
 
 if __name__ == "__main__":
