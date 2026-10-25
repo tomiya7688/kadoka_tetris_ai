@@ -18,3 +18,5 @@ python tools/audit_python_trust.py
 `build.bat`は依存導入前に固定版のbootstrapと監査を行います。Pythonを使う各CIも同じ監査を実行します。Issue #95は、残るOS・他環境・生成済み成果物の検証を終えるまで完了にしません。
 
 対象fingerprintは[公開インシデント資料のroots.json](https://emudhra.we-have-a-problem.com/roots.json)にあるemSign ECC/TLS/CSのG3ルートです。上流が復元したG1・C1・C3ルートは一括禁止しません。
+
+対応するPEM形式は`CERTIFICATE`です。`TRUSTED CERTIFICATE`など別形式を含むファイルは、証明書を黙って監査対象から除外せず失敗終了にします。未完了・重複した証明書境界も失敗になります。

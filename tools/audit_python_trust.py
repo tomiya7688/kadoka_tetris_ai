@@ -42,6 +42,9 @@ def audit_bundle(path: Path) -> dict:
     # system storeを暗黙に混ぜず、このbundleの収録内容だけを検査する。
     bundle = path.read_bytes()
     # PEM外のUTF-8コメントを除き、証明書ブロック自体はASCIIとして厳密に読む。
+    labels = re.findall(rb"-----(?:BEGIN|END) ([^\r\n-]+)-----", bundle)
+    if any(label != b"CERTIFICATE" for label in labels):
+        raise ValueError("Unsupported PEM block type in CA bundle")
     certificates_pem = re.findall(
         rb"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", bundle, re.DOTALL
     )

@@ -155,6 +155,21 @@ class PythonTrustTests(unittest.TestCase):
         self.assertEqual(report["status"], "PASS")
         self.assertGreater(report["ca_count"], 0)
         self.assertEqual(report["sha256"], hashlib.sha256(bundle).hexdigest())
+        # cafileが扱う別形式を黙って除外し、安全な証明書だけでPASSにしない。
+        for label in (b"TRUSTED CERTIFICATE", b"X509 CERTIFICATE", b"X509 CRL"):
+            unsupported = (
+                b"-----BEGIN "
+                + label
+                + b"-----\nZmFrZQ==\n-----END "
+                + label
+                + b"-----\n"
+            )
+            with (
+                self.subTest(label=label),
+                patch.object(Path, "read_bytes", return_value=bundle + unsupported),
+            ):
+                with self.assertRaises(ValueError):
+                    audit.audit_bundle(Path(__file__))
         # 有効な証明書の後に壊れたブロックがあっても無視してPASSにしない。
         with patch.object(
             Path,
