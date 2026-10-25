@@ -6,6 +6,7 @@ from importlib.metadata import version
 import json
 import os
 from pathlib import Path
+import re
 import ssl
 import sys
 
@@ -40,8 +41,14 @@ def blocked_roots(certificates: list[bytes]) -> list[str]:
 def audit_bundle(path: Path) -> dict:
     # system storeを暗黙に混ぜず、このbundleの収録内容だけを検査する。
     bundle = path.read_bytes()
+    # PEM外のUTF-8コメントを除き、証明書ブロック自体はASCIIとして厳密に読む。
+    certificates_pem = re.findall(
+        rb"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----", bundle, re.DOTALL
+    )
+    if not certificates_pem:
+        raise ValueError("No PEM certificates in CA bundle")
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
-    context.load_verify_locations(cadata=bundle.decode("ascii"))
+    context.load_verify_locations(cadata=b"\n".join(certificates_pem).decode("ascii"))
     certificates = context.get_ca_certs(binary_form=True)
     blocked = blocked_roots(certificates)
     return {

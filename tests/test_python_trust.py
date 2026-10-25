@@ -45,7 +45,11 @@ class PythonTrustTests(unittest.TestCase):
             audit.audit_bundle(Path(__file__).with_name("missing-bundle.pem"))
         with (
             patch.object(ssl, "SSLContext") as context,
-            patch.object(Path, "read_bytes", return_value=b"PEM fixture"),
+            patch.object(
+                Path,
+                "read_bytes",
+                return_value=b"-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----",
+            ),
         ):
             context.return_value.get_ca_certs.return_value = []
             self.assertEqual(audit.audit_bundle(Path(__file__))["status"], "FAIL")
@@ -133,6 +137,24 @@ class PythonTrustTests(unittest.TestCase):
         self.assertIn("PIP_CERT", report["bundles"])
         bundle.assert_any_call(Path("custom.pem"))
         self.assertEqual(report["bundle_status"], "FAIL")
+
+    # {
+    #   責務: [test_unicode_comments: 証明書外の日本語コメントで有効bundleを拒否しない]
+    #   処理: [実certifi bundleにUTF-8コメントを加え、CAとhashを確認する]
+    #   引数: [self: テストインスタンス]
+    #   戻り値: [なし]
+    # }
+    def test_unicode_comments(self) -> None:
+        try:
+            import certifi
+        except ImportError:
+            self.skipTest("Install requirements-security.txt for real PEM integration")
+        bundle = "# 日本語のCA管理メモ\n".encode() + Path(certifi.where()).read_bytes()
+        with patch.object(Path, "read_bytes", return_value=bundle):
+            report = audit.audit_bundle(Path(__file__))
+        self.assertEqual(report["status"], "PASS")
+        self.assertGreater(report["ca_count"], 0)
+        self.assertEqual(report["sha256"], hashlib.sha256(bundle).hexdigest())
 
 
 if __name__ == "__main__":
