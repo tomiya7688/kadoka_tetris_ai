@@ -41,7 +41,8 @@ class FormatCodeTests(unittest.TestCase):
             root = Path(directory)
             (root / "tools").mkdir()
             (root / "tools/example.py").write_text("answer = 42\n", encoding="utf-8")
-            with patch.object(format_code, "ROOT", root):
+            # 短縮pathと同様に、rootの表記だけが正規形と異なる場合も許可する。
+            with patch.object(format_code, "ROOT", root / "tools" / ".."):
                 self.assertEqual(
                     format_code.source_paths(
                         [

@@ -65,7 +65,8 @@ def source_paths(names: list[str]) -> list[str]:
             for part in path.parts
         ):
             continue
-        candidate = ROOT / path
+        # Windowsの短縮名を含むrootを先に正規化し、linkとの誤判定を避ける。
+        candidate = ROOT.resolve() / path
         if candidate.resolve() != candidate.absolute():
             raise ValueError(f"Links are not formatting targets: {name}")
         if not candidate.is_file():
