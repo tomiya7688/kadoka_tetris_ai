@@ -10,6 +10,12 @@ import re
 import ssl
 import sys
 
+# 直接実行とunittestのpackage importで同じ読込実装を使う。
+if __package__:
+    from .pip_trust_settings import load_pip_trust_settings
+else:
+    from pip_trust_settings import load_pip_trust_settings
+
 MINIMUM_VERSIONS = {"pip": (26, 2, 2), "certifi": (2026, 10, 19)}
 # 公開資料roots.jsonのemSign G3 root DER SHA-256。AAA交差署名経路は別検証。
 BLOCKED_ROOT_SHA256 = {
@@ -105,13 +111,27 @@ def audit_environment() -> dict:
     ):
         if os.environ.get(setting):
             report["bundles"][setting] = audit_bundle(Path(os.environ[setting]))
+    # コマンド別の設定も検査する。上書きされる設定も保守的に拒否対象とする。
+    trust_settings = load_pip_trust_settings()
+    for index, (name, setting) in enumerate(trust_settings):
+        if name.endswith(".cert") and setting:
+            report["bundles"][f"pip-config:{index}:{name}"] = audit_bundle(
+                Path(setting)
+            )
+    # ホスト名や認証付きindex URLは監査JSONへ出さない。
+    has_configured_trusted_host = any(
+        name.endswith(".trusted-host") and setting.strip()
+        for name, setting in trust_settings
+    )
     # OSやSSL_CERT_DIRはbundle監査と同じ保証にはせず、残件として明示する。
     report["system_trust"] = {
         "status": "UNVERIFIED",
         "reason": "OS chain validation/revocation and SSL_CERT_DIR are outside this bundle audit; pip may also use OS trust.",
     }
     report["tls_verification_bypass"] = (
-        "FAIL" if os.environ.get("PIP_TRUSTED_HOST") else "PASS"
+        "FAIL"
+        if os.environ.get("PIP_TRUSTED_HOST") or has_configured_trusted_host
+        else "PASS"
     )
     checks = [
         entry["status"]

@@ -13,6 +13,10 @@ python tools/audit_python_trust.py
 
 `PIP_CERT`、`REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`SSL_CERT_FILE`を指定した環境では、その実ファイルも監査します。proxyや認証値は出力しません。未導入の依存関係を自動インストールするのは監査ではなく、上記の明示的な準備コマンドです。
 
+設定ファイル経由の別CAやTLS検証回避を見落とさないため、pip自身の通常モードの設定ローダーも使用します。global・user・siteと`PIP_CONFIG_FILE`、環境変数をpipの読込規則で読み、各セクションの`cert`が指す実bundleを監査します。`trusted-host`が1つでも空白以外の値を持つ場合は失敗します。コマンド別設定や上書きされる設定も保守的に検査するため、特定のpip呼出しで使わない設定が失敗原因になる場合があります。[pipの設定仕様](https://pip.pypa.io/en/stable/topics/configuration/)を確認し、不要な設定は利用者が修正してください。
+
+`PIP_CONFIG_FILE`に`os.devnull`を指定すると、pipと同様に設定ファイルを読みません。認証付きindexやproxy、trusted-hostの値は報告しません。設定読込の失敗は原文を出さず失敗終了になります。コマンドライン引数・requirements内の追加オプション、`--isolated`での別の設定読込は、この通常モード監査では検証しません。
+
 `bundle_status: PASS`は、この範囲のCA一覧と最低版の検査成功を意味します。OSのsystem trust、失効判定、AAA Certificate Servicesへの交差署名を含む実チェーンの拒否、`SSL_CERT_DIR`、uv・sigstore、他のPython環境、配布済み成果物は保証しません。pipはOSのtrust storeも利用するため、`system_trust`を`UNVERIFIED`として必ず報告します。OS全体のtrust storeをこのツールで変更しません。
 
 `build.bat`は依存導入前に固定版のbootstrapと監査を行います。Pythonを使う各CIも同じ監査を実行します。Issue #95は、残るOS・他環境・生成済み成果物の検証を終えるまで完了にしません。
