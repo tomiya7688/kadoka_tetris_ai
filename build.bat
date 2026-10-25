@@ -15,6 +15,12 @@ if not exist "%PYTHON%" (
     if errorlevel 1 goto :fail
 )
 
+"%PYTHON%" -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r requirements-security.txt
+if errorlevel 1 goto :fail
+
+"%PYTHON%" tools\audit_python_trust.py
+if errorlevel 1 goto :fail
+
 "%PYTHON%" -m pip install --disable-pip-version-check -r requirements-build.txt
 if errorlevel 1 goto :fail
 
