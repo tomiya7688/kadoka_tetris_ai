@@ -83,6 +83,9 @@ class PipTrustSettingsTests(unittest.TestCase):
                 patch.object(audit, "version", side_effect=["26.2.2", "2026.10.19"]),
                 patch.object(audit, "import_module"),
                 patch.object(
+                    audit, "audit_default_trust", return_value={"status": "UNVERIFIED"}
+                ),
+                patch.object(
                     audit,
                     "load_pip_trust_settings",
                     return_value=[

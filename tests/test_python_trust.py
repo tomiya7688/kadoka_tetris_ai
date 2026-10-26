@@ -72,6 +72,9 @@ class PythonTrustTests(unittest.TestCase):
             patch.object(audit, "version", side_effect=["26.2.1", "2026.10.19"]),
             patch.object(audit, "import_module"),
             patch.object(audit, "load_pip_trust_settings", return_value=[]),
+            patch.object(
+                audit, "audit_default_trust", return_value={"status": "UNVERIFIED"}
+            ),
             patch.object(audit, "audit_bundle", return_value={"status": "PASS"}),
             patch.dict(audit.os.environ, {}, clear=True),
         ):
@@ -126,6 +129,9 @@ class PythonTrustTests(unittest.TestCase):
             ),
             patch.object(audit, "import_module"),
             patch.object(audit, "load_pip_trust_settings", return_value=[]),
+            patch.object(
+                audit, "audit_default_trust", return_value={"status": "UNVERIFIED"}
+            ),
             patch.object(
                 audit, "audit_bundle", return_value={"status": "PASS"}
             ) as bundle,

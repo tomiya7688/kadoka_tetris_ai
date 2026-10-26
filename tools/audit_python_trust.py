@@ -39,6 +39,35 @@ def blocked_roots(certificates: list[bytes]) -> list[str]:
 
 
 # {
+#   責務: [audit_default_trust: Pythonの既定TLSコンテキストに読み込まれたCAを検査する]
+#   処理: [既定CAを列挙し対象rootの残存と未検証の境界を報告する]
+#   引数: [なし]
+#   戻り値: [CA列挙結果とsystem trustのFAILまたはUNVERIFIEDを持つ辞書]
+# }
+def audit_default_trust() -> dict:
+    # create_default_contextはSSLKEYLOGFILEの作成を伴い得るため使わない。
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.load_default_certs(ssl.Purpose.SERVER_AUTH)
+    certificates = context.get_ca_certs(binary_form=True)
+    blocked = blocked_roots(certificates)
+    # capathのCAは遅延読込される。列挙だけでOS/チェーン全体をPASSにしない。
+    return {
+        "source": "Python ssl.SSLContext.load_default_certs(SERVER_AUTH)",
+        "ca_count": len(certificates),
+        "blocked_roots": blocked,
+        "loaded_ca_status": (
+            "FAIL" if blocked else "PASS" if certificates else "UNVERIFIED"
+        ),
+        "default_verify_paths": ssl.get_default_verify_paths()._asdict(),
+        "status": "FAIL" if blocked else "UNVERIFIED",
+        "reason": (
+            "Only exact DER fingerprints of already-loaded Python ssl CAs were checked; lazy capath/SSL_CERT_DIR, "
+            "native OS/pip truststore chain validation and revocation remain unverified."
+        ),
+    }
+
+
+# {
 #   責務: [audit_bundle: 実ファイルのCA bundleを読取専用で監査する]
 #   処理: [1: 明示したbundleだけをSSLContextへ読み込む 2: CAとhashを報告する]
 #   引数: [path: PEM bundleの実ファイル]
@@ -123,11 +152,7 @@ def audit_environment() -> dict:
         name.endswith(".trusted-host") and setting.strip()
         for name, setting in trust_settings
     )
-    # OSやSSL_CERT_DIRはbundle監査と同じ保証にはせず、残件として明示する。
-    report["system_trust"] = {
-        "status": "UNVERIFIED",
-        "reason": "OS chain validation/revocation and SSL_CERT_DIR are outside this bundle audit; pip may also use OS trust.",
-    }
+    report["system_trust"] = audit_default_trust()
     report["tls_verification_bypass"] = (
         "FAIL"
         if os.environ.get("PIP_TRUSTED_HOST") or has_configured_trusted_host
@@ -151,13 +176,18 @@ def audit_environment() -> dict:
 #   責務: [main: ネットワークやtrust storeの変更なしで監査結果をJSON出力する]
 #   処理: [監査を実行し、不足・異常・対象CA残存を失敗終了として返す]
 #   引数: [なし]
-#   戻り値: [bundle監査成功時0、失敗時1。OS検証の完了を意味しない]
+#   戻り値: [bundle成功かつ既定CAに対象root未検出なら0、失敗時1。OS検証完了ではない]
 # }
 def main() -> int:
     try:
         report = audit_environment()
         print(json.dumps(report, ensure_ascii=True, indent=2))
-        return 0 if report["bundle_status"] == "PASS" else 1
+        return (
+            0
+            if report["bundle_status"] == "PASS"
+            and report["system_trust"]["status"] != "FAIL"
+            else 1
+        )
     except (ImportError, OSError, ValueError, ssl.SSLError) as error:
         print(
             json.dumps(
