@@ -1,0 +1,13 @@
+# CIランナーの対象CA除外
+
+Issue #95の監査で、GitHub-hostedのLinuxとWindowsランナーの既定CAに対象G3ルートが残ることが分かりました。安全でない既定ルートを残したままPython依存を導入しないため、CIジョブのbootstrap前に対象ルートを除外し、監査を再実行します。
+
+`tools/ci_remediate_trust.py`は、`GITHUB_ACTIONS=true`かつ`RUNNER_ENVIRONMENT=github-hosted`の実行環境だけを受け付けます。利用者のPCやself-hosted runnerでは実行しないでください。この環境変数は誤操作を避けるための確認であり、悪意のある実行者に対するアクセス制御ではありません。独自の`SSL_CERT_FILE`または`SSL_CERT_DIR`が設定されている場合は、sudoの環境引継ぎに依存せず処理前に停止します。
+
+Linuxでは管理されているCA sourceを読み、対象ルートとDER SHA-256が完全一致する単一証明書だけを`ca-certificates.conf`で無効化します。設定更新後に`update-ca-certificates --fresh`を実行します。独自CA source内に対象がある場合、対象が設定にない場合、混在ファイルやシンボリックリンクがある場合は停止します。
+
+WindowsではCurrentUserとLocalMachineのRoot・CA storeを読み、対象SHA-256の証明書だけを同じ範囲のDisallowedへ追加して元storeから除外します。ストア更新が失敗した場合は停止します。OSやWindowsの自動ルート更新を無効化しません。
+
+処理後はPythonの既定TLSにロードされたCAを再監査します。LinuxではOpenSSLのCAディレクトリのhash名ファイルも検査し、対象が残る場合や検査できない場合はCIを失敗にします。通常の`tools/audit_python_trust.py`も引き続き実行します。
+
+これらの操作は対象fingerprintの既定CA残存への対策です。交差署名・再発行証明書、Windowsの実チェーン・失効、他のTLSクライアントや別ディレクトリを含む全経路の安全性は保証しません。結果はCIログの是正処理と監査結果を確認してください。Issue #95は残件があるため完了にしません。
