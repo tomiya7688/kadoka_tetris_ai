@@ -90,7 +90,7 @@ jobs:
             echo "Custom OpenSSL CA paths require manual review" >&2
             exit 1
           fi
-          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT "$(command -v python)" tools/ci_remediate_trust.py
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT "$(command -v python)" -B tools/ci_remediate_trust.py
 
       - name: Bootstrap and audit Python CA bundles
         run: |
