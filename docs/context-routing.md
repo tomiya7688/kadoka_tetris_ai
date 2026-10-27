@@ -114,7 +114,7 @@ CI、ruff、CMake、checker、依存境界、開発ルール。
 - Acceptance evidenceが揃ったら探索を止める。別routeへ広げるのは共有契約、未知の影響、失敗の原因調査が必要な時だけ。
 - ルーティング情報は索引であり、仕様や実装の正本を置き換えない。
 
-基本原則（静的解析・繰り返し操作の集約・必要箇所だけ読む）は [ai-context-reducer](https://github.com/tomiya7688/ai-context-reducer) を参考に採用し、外部ツールへの依存は追加しません。
+基本原則（静的解析・繰り返し操作の集約・必要箇所だけ読む）は [ai-context-reducer](https://github.com/tomiya7688/ai-context-reducer) を参考に採用します。コンテキスト削減のために専用の外部ツールは導入しません。CIや開発の検査ツールは必要に応じて開発用依存として管理します。
 
 ## Ignore Normally
 

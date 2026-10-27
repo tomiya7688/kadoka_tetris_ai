@@ -122,7 +122,7 @@ class KeyboardBindings:
 
     def _normalize_key(self, key_name: str) -> str:
         if not isinstance(key_name, str):
-            raise ValueError("key names must be strings")
+            raise ValueError("key names must be strings")  # pyright: ignore[reportUnreachable]
         normalized = key_name.strip().lower()
         if not normalized:
             raise ValueError("key names must not be empty")

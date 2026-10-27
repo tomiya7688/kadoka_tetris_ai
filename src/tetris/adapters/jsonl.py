@@ -20,7 +20,7 @@ def decode_commands(lines: Iterable[str]) -> Iterator[Command]:
 
 def decode_input_action(line: str) -> InputAction:
     if not isinstance(line, str):
-        raise ValueError("input action must be text")
+        raise ValueError("input action must be text")  # pyright: ignore[reportUnreachable]
     if not line.strip():
         raise ValueError("input action must not be empty")
 
@@ -47,5 +47,5 @@ def decode_input_action(line: str) -> InputAction:
 
 def encode_event(event: dict) -> str:
     if not isinstance(event, dict):
-        raise ValueError("event must be an object")
+        raise ValueError("event must be an object")  # pyright: ignore[reportUnreachable]
     return json.dumps(event, ensure_ascii=False, separators=(",", ":"))
