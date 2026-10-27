@@ -19,7 +19,7 @@ public class FakeStore {
     public void Open(OpenFlags flags) { }
     public void Close() { }
     public void Add(FakeCert cert) {
-        if (failAdd) throw new UnauthorizedAccessException("fake disallowed add failure");
+        if (failAdd) throw new UnauthorizedAccessException("CI_FAKE_ADD_FAILURE");
     }
     public void Remove(FakeCert cert) {
         if (location == "CurrentUser" || failMachine) throw new UnauthorizedAccessException();

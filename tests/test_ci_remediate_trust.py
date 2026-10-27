@@ -218,7 +218,7 @@ class CiRemediateTrustTests(unittest.TestCase):
                     if mode in ("remain", "user-only"):
                         self.assertIn("remains in", result.stderr)
                     if mode == "add-failure":
-                        self.assertIn("fake disallowed add failure", result.stderr)
+                        self.assertIn("CI_FAKE_ADD_FAILURE", result.stderr)
                         self.assertNotIn("Removed and disallowed", result.stdout)
 
     # {
