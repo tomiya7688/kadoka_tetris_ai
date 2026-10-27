@@ -5,16 +5,17 @@ using System;
 using System.Security.Cryptography.X509Certificates;
 public class FakeCert { public byte[] RawData = new byte[] { 1, 2, 3 }; }
 public class FakeStore {
-    public static bool present = true;
+    public static bool machinePresent = true;
+    public static bool userPresent = false;
     public static bool failMachine = false;
     public static bool failAdd = false;
-    public static bool userOnly = false;
     public static bool caOnly = false;
     private string name;
     private string location;
     public FakeStore(string n, string l) { name = n; location = l; }
     public FakeCert[] Certificates { get {
-        return name == (caOnly ? "CA" : "Root") && present && (!userOnly || location == "CurrentUser") ? new FakeCert[] { new FakeCert() } : new FakeCert[0];
+        bool present = location == "CurrentUser" ? userPresent || machinePresent : machinePresent;
+        return name == (caOnly ? "CA" : "Root") && present ? new FakeCert[] { new FakeCert() } : new FakeCert[0];
     } }
     public void Open(OpenFlags flags) { }
     public void Close() { }
@@ -23,13 +24,14 @@ public class FakeStore {
     }
     public void Remove(FakeCert cert) {
         if (location == "CurrentUser" || failMachine) throw new UnauthorizedAccessException();
-        present = false;
+        machinePresent = false;
     }
 }
 '@
 if ($Mode -eq 'remain') { [FakeStore]::failMachine = $true }
 if ($Mode -eq 'add-failure') { [FakeStore]::failAdd = $true }
-if ($Mode -eq 'user-only') { [FakeStore]::userOnly = $true }
+if ($Mode -eq 'user-only') { [FakeStore]::userPresent = $true; [FakeStore]::machinePresent = $false }
+if ($Mode -eq 'both-independent') { [FakeStore]::userPresent = $true }
 if ($Mode -eq 'ca-only') { [FakeStore]::caOnly = $true }
 $hash = [System.Security.Cryptography.SHA256]::Create()
 try { $env:KADOKA_BLOCKED_ROOTS = ([BitConverter]::ToString($hash.ComputeHash([byte[]](1,2,3)))).Replace('-', '').ToLowerInvariant() }

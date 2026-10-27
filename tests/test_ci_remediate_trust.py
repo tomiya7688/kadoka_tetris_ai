@@ -197,6 +197,7 @@ class CiRemediateTrustTests(unittest.TestCase):
                 ("remain", 1),
                 ("add-failure", 1),
                 ("user-only", 1),
+                ("both-independent", 1),
                 ("ca-only", 0),
             ):
                 with self.subTest(mode=mode):
@@ -215,8 +216,11 @@ class CiRemediateTrustTests(unittest.TestCase):
                         check=False,
                     )
                     self.assertEqual(result.returncode, expected, result.stderr)
-                    if mode in ("remain", "user-only"):
+                    if mode in ("remain", "user-only", "both-independent"):
                         self.assertIn("remains in", result.stderr)
+                    if mode == "both-independent":
+                        self.assertIn("CurrentUser/Root", result.stderr)
+                        self.assertIn("LocalMachine/Root", result.stdout)
                     if mode == "add-failure":
                         self.assertIn("CI_FAKE_ADD_FAILURE", result.stderr)
                         self.assertNotIn("Removed and disallowed", result.stdout)
