@@ -10,6 +10,21 @@
 
 ## 開発者の実行方法
 
-リポジトリのルートで `python -m pip install -r requirements-ci.txt` を実行してから、`python -m pyright` と `python -m unittest tests.test_python_reachability` を実行してください。新たな診断は発生条件を確認し、必要な防御処理には理由と回帰テストを用意してください。
+リポジトリのルートで `python -m pip install -r requirements-ci.txt` を実行してください。続いて `python -m pyright` を実行してください。テストの前には `src` をPythonのimportパスに追加します。
+
+PowerShellでは次を実行してください。
+
+```powershell
+$env:PYTHONPATH = "src"
+python -m unittest tests.test_python_reachability
+```
+
+Linuxなどのシェルでは次を実行してください。
+
+```bash
+PYTHONPATH=src python -m unittest tests.test_python_reachability
+```
+
+新たな診断は発生条件を確認し、必要な防御処理には理由と回帰テストを用意してください。
 
 この検査は静的解析です。実行時の全分岐やC++の到達可能性を保証しません。C++の継続検査はIssue #103の残作業です。
