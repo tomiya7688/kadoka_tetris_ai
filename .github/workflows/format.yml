@@ -24,6 +24,15 @@ jobs:
           cache-dependency-path: |
             requirements-ci.txt
             requirements-security.txt
+      - name: Remove blocked CA roots from hosted runner
+        shell: bash
+        run: |
+          if [ -n "${SSL_CERT_FILE:-}" ] || [ -n "${SSL_CERT_DIR:-}" ]; then
+            echo "Custom OpenSSL CA paths require manual review" >&2
+            exit 1
+          fi
+          sudo --preserve-env=GITHUB_ACTIONS,RUNNER_ENVIRONMENT "$(command -v python)" -B tools/ci_remediate_trust.py
+
       - name: Bootstrap and audit Python CA bundles
         run: |
           python -m pip install --disable-pip-version-check --only-binary=:all: --require-hashes -r requirements-security.txt

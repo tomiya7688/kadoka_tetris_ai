@@ -17,7 +17,11 @@ python tools/audit_python_trust.py
 
 `PIP_CONFIG_FILE`に`os.devnull`を指定すると、pipと同様に設定ファイルを読みません。認証付きindexやproxy、trusted-hostの値は報告しません。設定読込の失敗は原文を出さず失敗終了になります。コマンドライン引数・requirements内の追加オプション、`--isolated`での別の設定読込は、この通常モード監査では検証しません。
 
-`bundle_status: PASS`は、この範囲のCA一覧と最低版の検査成功を意味します。OSのsystem trust、失効判定、AAA Certificate Servicesへの交差署名を含む実チェーンの拒否、`SSL_CERT_DIR`、uv・sigstore、他のPython環境、配布済み成果物は保証しません。pipはOSのtrust storeも利用するため、`system_trust`を`UNVERIFIED`として必ず報告します。OS全体のtrust storeをこのツールで変更しません。
+`bundle_status: PASS`は、この範囲のCA一覧と最低版の検査成功を意味します。OSのsystem trust、失効判定、AAA Certificate Servicesへの交差署名を含む実チェーンの拒否、`SSL_CERT_DIR`、uv・sigstore、他のPython環境、配布済み成果物は保証しません。OS全体のtrust storeをこのツールで変更しません。
+
+certifi以外の既定経路に対象CAが残る場合を検出するため、Pythonの`SSLContext.load_default_certs(SERVER_AUTH)`で読み込まれるCAも列挙します。`system_trust`にはCA数・対象fingerprint・既定のCAファイル/ディレクトリ経路を報告します。`loaded_ca_status`は列挙したCAだけの結果です。対象rootを検出した場合は`system_trust.status: FAIL`となり、bundleがPASSでもCLIは終了値1を返します。
+
+列挙したCAに対象がなくても、`system_trust.status`は`UNVERIFIED`のままです。検出は公開ルートのDER SHA-256完全一致だけを対象とし、同じ鍵の再発行証明書や交差署名証明書までは検出しません。ディレクトリのCAは遅延読込されるため、空の列挙も安全の証明にはしません。ネイティブOSやpipのtruststoreによる実チェーン・失効検証は別の経路です。[PythonのCA列挙の仕様](https://docs.python.org/3/library/ssl.html#ssl.SSLContext.get_ca_certs)と[pipのsystem trust仕様](https://pip.pypa.io/en/stable/topics/https-certificates/)を参照してください。終了値0でもこれらの残件は未検証です。監査はTLS接続やkeylogファイルの作成を行いません。
 
 `build.bat`は依存導入前に固定版のbootstrapと監査を行います。Pythonを使う各CIも同じ監査を実行します。Issue #95は、残るOS・他環境・生成済み成果物の検証を終えるまで完了にしません。
 
