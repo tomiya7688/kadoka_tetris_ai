@@ -30,4 +30,4 @@ class PlayerObservation:
 
     def _validate_piece(self, piece: PieceType | None, name: str) -> None:
         if piece is not None and not isinstance(piece, PieceType):
-            raise ValueError(f"{name} must be PieceType or None")
+            raise ValueError(f"{name} must be PieceType or None")  # pyright: ignore[reportUnreachable]

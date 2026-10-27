@@ -59,7 +59,9 @@ class AIBackend(ABC):
 class NativePlannerBackend(AIBackend):
     """Fast adapter for the existing in-process PlacementPlanner."""
 
-    def __init__(self, planner: PlacementPlanner | None = None, name: str = "placement_planner"):
+    def __init__(
+        self, planner: PlacementPlanner | None = None, name: str = "placement_planner"
+    ):
         self._planner = planner or PlacementPlanner()
         self._name = name
 
@@ -89,7 +91,7 @@ class FunctionAIBackend(AIBackend):
         decide: Callable[[GameState], AIProposal],
     ):
         if not callable(decide):
-            raise ValueError("decide must be callable")
+            raise ValueError("decide must be callable")  # pyright: ignore[reportUnreachable]
         self._kind = kind
         self._name = name
         self._decide = decide
@@ -152,7 +154,9 @@ class PersistentProcessAIBackend(AIBackend):
         timeout_seconds: float = 5.0,
     ):
         if kind not in (AIBackendKind.EXTERNAL_PROCESS, AIBackendKind.SCRIPT):
-            raise ValueError("persistent process backend kind must be external_process or script")
+            raise ValueError(
+                "persistent process backend kind must be external_process or script"
+            )
         if not executable:
             raise ValueError("executable must not be empty")
         if timeout_seconds <= 0:
@@ -235,7 +239,9 @@ class PersistentProcessAIBackend(AIBackend):
             raise RuntimeError("external AI response has invalid request id")
 
         actions = response.get("actions")
-        if not isinstance(actions, list) or not all(isinstance(action, str) for action in actions):
+        if not isinstance(actions, list) or not all(
+            isinstance(action, str) for action in actions
+        ):
             raise RuntimeError("external AI response requires string actions")
         diagnostics = response.get("diagnostics", {})
         if not isinstance(diagnostics, dict) or not all(

@@ -15,7 +15,11 @@ class Command:
     action: str
 
     def __post_init__(self) -> None:
-        if not isinstance(self.player, int) or isinstance(self.player, bool) or self.player < 0:
+        if (
+            not isinstance(self.player, int)
+            or isinstance(self.player, bool)
+            or self.player < 0
+        ):
             raise ValueError("player must be nonnegative integer")
         if (
             not isinstance(self.tick, int)
@@ -32,7 +36,7 @@ class Command:
     @classmethod
     def from_dict(cls, data: dict[str, Any]):
         if not isinstance(data, dict):
-            raise ValueError("command must be an object")
+            raise ValueError("command must be an object")  # pyright: ignore[reportUnreachable]
         try:
             return cls(
                 player=data["player"],

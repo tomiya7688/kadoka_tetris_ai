@@ -121,5 +121,8 @@ jobs:
       - name: Run correctness lint
         run: python -m ruff check --output-format=github src tests tools
 
+      - name: Check Python unreachable code
+        run: python -m pyright
+
       - name: Run Python unit tests
         run: python -m unittest discover -s tests -v
