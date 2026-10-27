@@ -6,7 +6,7 @@ Issue #95の監査で、GitHub-hostedのLinuxとWindowsランナーの既定CA�
 
 Linuxでは管理されているCA sourceを読み、対象ルートとDER SHA-256が完全一致する単一証明書だけを`ca-certificates.conf`で無効化します。設定更新後に`update-ca-certificates --fresh`を実行します。独自CA source内に対象がある場合、対象が設定にない場合、混在ファイルやシンボリックリンクがある場合は停止します。
 
-WindowsではCurrentUserとLocalMachineのRoot・CA storeを読み、対象SHA-256の証明書だけを同じ範囲のDisallowedへ追加して元storeから除外します。ストア更新が失敗した場合は停止します。OSやWindowsの自動ルート更新を無効化しません。
+WindowsではCurrentUserとLocalMachineのRoot・CA storeを読み、対象SHA-256の証明書だけを同じ範囲のDisallowedへ追加し、元storeからの削除を試みます。削除に失敗した証明書があっても他のstoreを処理し、最後に全storeを再列挙します。対象の残存、列挙やDisallowedへの追加の失敗はCIを停止します。OSやWindowsの自動ルート更新を無効化しません。
 
 処理後はPythonの既定TLSにロードされたCAを再監査します。LinuxではOpenSSLのCAディレクトリのhash名ファイルも検査し、対象が残る場合や検査できない場合はCIを失敗にします。通常の`tools/audit_python_trust.py`も引き続き実行します。
 

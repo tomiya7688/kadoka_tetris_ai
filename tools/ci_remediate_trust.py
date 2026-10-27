@@ -120,23 +120,47 @@ def remediate_ubuntu_trust() -> None:
 WINDOWS_REMEDIATION = r"""
 $ErrorActionPreference = 'Stop'
 $blocked = $env:KADOKA_BLOCKED_ROOTS -split ','
+if (@($blocked).Count -eq 0 -or @($blocked | Where-Object { $_ -cnotmatch '^[0-9a-f]{64}$' }).Count -gt 0) {
+  throw 'Blocked CA fingerprints must be lowercase SHA-256 values'
+}
+function Get-CertificateFingerprint($certificate) {
+  $sha = [System.Security.Cryptography.SHA256]::Create()
+  try { return ([BitConverter]::ToString($sha.ComputeHash($certificate.RawData))).Replace('-', '').ToLowerInvariant() }
+  finally { $sha.Dispose() }
+}
 foreach ($location in @('CurrentUser', 'LocalMachine')) {
   foreach ($name in @('Root', 'CA')) {
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($name, $location)
     try {
       $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
       foreach ($certificate in @($store.Certificates)) {
-        $sha = [System.Security.Cryptography.SHA256]::Create()
-        try { $fingerprint = ([BitConverter]::ToString($sha.ComputeHash($certificate.RawData))).Replace('-', '').ToLowerInvariant() }
-        finally { $sha.Dispose() }
+        $fingerprint = Get-CertificateFingerprint $certificate
         if ($blocked -contains $fingerprint) {
           $denied = [System.Security.Cryptography.X509Certificates.X509Store]::new('Disallowed', $location)
           try {
             $denied.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
             $denied.Add($certificate)
           } finally { $denied.Close() }
-          $store.Remove($certificate)
-          Write-Output "Removed and disallowed SHA-256 $fingerprint from $location/$name"
+          try {
+            $store.Remove($certificate)
+            Write-Output "Removed and disallowed SHA-256 $fingerprint from $location/$name"
+          } catch {
+            Write-Output "Could not remove SHA-256 $fingerprint from $location/$name`: $($_.Exception.Message); checking again after all stores"
+          }
+        }
+      }
+    } finally { $store.Close() }
+  }
+}
+foreach ($location in @('CurrentUser', 'LocalMachine')) {
+  foreach ($name in @('Root', 'CA')) {
+    $store = [System.Security.Cryptography.X509Certificates.X509Store]::new($name, $location)
+    try {
+      $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+      foreach ($certificate in @($store.Certificates)) {
+        $fingerprint = Get-CertificateFingerprint $certificate
+        if ($blocked -contains $fingerprint) {
+          throw "Blocked SHA-256 $fingerprint remains in $location/$name"
         }
       }
     } finally { $store.Close() }
@@ -147,11 +171,16 @@ foreach ($location in @('CurrentUser', 'LocalMachine')) {
 
 # {
 #   責務: [remediate_windows_trust: 使い捨てWindows runnerの対象CAを信頼対象から除外する]
-#   処理: [SHA-256完全一致のCAをDisallowedへ追加して元ストアから取り除く]
+#   処理: [対象をDisallowedへ追加し削除を試み、全ストアを再列挙して残存時に失敗する]
 #   引数: [なし]
 #   戻り値: [なし。ストア更新失敗は例外]
 # }
 def remediate_windows_trust() -> None:
+    if not BLOCKED_ROOT_SHA256 or any(
+        not re.fullmatch(r"[0-9a-f]{64}", fingerprint)
+        for fingerprint in BLOCKED_ROOT_SHA256
+    ):
+        raise ValueError("Blocked CA fingerprints must be lowercase SHA-256 values")
     environment = os.environ.copy()
     environment["KADOKA_BLOCKED_ROOTS"] = ",".join(sorted(BLOCKED_ROOT_SHA256))
     subprocess.run(
