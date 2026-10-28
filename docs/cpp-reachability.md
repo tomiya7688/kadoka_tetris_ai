@@ -15,13 +15,18 @@ Linux環境にClang 18とCMakeを用意し、リポジトリのルートからBa
 ```bash
 (
 set -euo pipefail
-while IFS= read -r -d '' header; do
+mapfile -d '' -t headers < <(git ls-files -z -- '*.h' '*.hpp')
+if ((${#headers[@]} == 0)); then
+  echo 'No tracked C++ headers found.' >&2
+  exit 1
+fi
+for header in "${headers[@]}"; do
   for macro in '' '-DKADOKA_TETRIS_C_API_BUILD'; do
     clang++-18 -std=c++20 -DNDEBUG -Wunreachable-code-aggressive \
       -Werror=unreachable-code -Werror=unreachable-code-aggressive \
       -Icore/include -Iruntime/include -x c++ -fsyntax-only ${macro:+"$macro"} "$header"
   done
-done < <(git ls-files -z -- '*.h' '*.hpp')
+done
 cmake -S . -B build-cpp-reachability -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DCMAKE_CXX_COMPILER=clang++-18 -DCMAKE_CXX_FLAGS="-Wunreachable-code-aggressive -Werror=unreachable-code -Werror=unreachable-code-aggressive"
 cmake --build build-cpp-reachability --config Release --parallel 2
 ctest --test-dir build-cpp-reachability -C Release --output-on-failure
