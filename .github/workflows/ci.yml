@@ -14,6 +14,77 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  cpp-reachability:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      LC_ALL: C
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check Clang version
+        run: clang++-18 --version
+
+      - name: Verify unreachable code causes a compilation failure
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/unreachable-probe.cpp" <<'EOF'
+          int probe() {
+              return 1;
+              return 2;
+          }
+          EOF
+          if clang++-18 -std=c++20 -Wunreachable-code-aggressive -Werror=unreachable-code -Werror=unreachable-code-aggressive -fsyntax-only "$RUNNER_TEMP/unreachable-probe.cpp" 2> "$RUNNER_TEMP/unreachable-probe.log"; then
+            echo "The intentional unreachable statement was not rejected."
+            exit 1
+          fi
+          if ! grep -Eq 'error:.*\[-Werror,-Wunreachable-code' "$RUNNER_TEMP/unreachable-probe.log"; then
+            cat "$RUNNER_TEMP/unreachable-probe.log"
+            echo "The compiler failed for a reason other than unreachable code."
+            exit 1
+          fi
+
+      - name: Configure C++ reachability build
+        run: >-
+          cmake -S . -B build-cpp-reachability -DCMAKE_BUILD_TYPE=Release
+          -DBUILD_TESTING=ON -DCMAKE_CXX_COMPILER=clang++-18
+          -DCMAKE_CXX_FLAGS="-Wunreachable-code-aggressive -Werror=unreachable-code -Werror=unreachable-code-aggressive"
+
+      - name: Verify reachability flags for every C++ source
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import shlex
+          import subprocess
+
+          tracked = subprocess.check_output(["git", "ls-files", "-z", "--", "*.cpp"])
+          expected = {Path(os.fsdecode(path)).resolve() for path in tracked.split(b"\0") if path}
+          commands = json.loads(Path("build-cpp-reachability/compile_commands.json").read_text(encoding="utf-8"))
+          actual = {Path(command["file"]).resolve() for command in commands}
+          if not expected or expected != actual:
+              raise SystemExit(f"C++ compile database mismatch: missing={sorted(expected - actual)}, unexpected={sorted(actual - expected)}")
+          required = {"-Wunreachable-code-aggressive", "-Werror=unreachable-code", "-Werror=unreachable-code-aggressive"}
+          for command in commands:
+              flags = shlex.split(command["command"])
+              if not required.issubset(flags) or any(
+                  flag in ("-w", "-Wno-error", "-Wno-everything") or flag.startswith(("-Wno-unreachable-code", "-Wno-error=unreachable-code"))
+                  for flag in flags
+              ):
+                  raise SystemExit(f"Missing or disabled reachability flags: {command['file']}")
+          print(f"Verified reachability flags for {len(expected)} C++ sources.")
+          PY
+
+      - name: Build C++ targets with reachability checks
+        run: cmake --build build-cpp-reachability --config Release --parallel 2 --verbose
+
+      - name: Test C++ targets
+        run: ctest --test-dir build-cpp-reachability -C Release --output-on-failure
+
   cpp-memory-safety:
     runs-on: ubuntu-latest
     timeout-minutes: 15
