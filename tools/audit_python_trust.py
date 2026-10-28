@@ -106,6 +106,26 @@ def audit_bundle(path: Path) -> dict:
 
 
 # {
+#   責務: [audit_configured_ca_directories: 明示されたOpenSSL CAディレクトリを監査する]
+#   処理: [hash名の各ファイルを既存bundle監査で検査し結果を返す]
+#   引数: [value: SSL_CERT_DIRのディレクトリ一覧]
+#   戻り値: [監査した各ファイルの結果。無効なディレクトリは例外]
+# }
+def audit_configured_ca_directories(value: str) -> list[dict]:
+    results = []
+    for directory_name in value.split(os.pathsep):
+        if not directory_name:
+            raise ValueError("Empty SSL_CERT_DIR entry")
+        directory = Path(directory_name)
+        if not directory.is_dir():
+            raise ValueError("Configured SSL_CERT_DIR is not a directory")
+        for entry in sorted(directory.iterdir()):
+            if re.fullmatch(r"[0-9a-fA-F]{8}\.[0-9]+", entry.name):
+                results.append(audit_bundle(entry))
+    return results
+
+
+# {
 #   責務: [audit_environment: 現在のPythonが参照するbundleとtool版を監査する]
 #   処理: [1: package版を検査する 2: vendorと明示的overrideのbundleを検査する]
 #   引数: [なし]
@@ -152,6 +172,11 @@ def audit_environment() -> dict:
         name.endswith(".trusted-host") and setting.strip()
         for name, setting in trust_settings
     )
+    report["configured_ca_directory_files"] = (
+        audit_configured_ca_directories(os.environ["SSL_CERT_DIR"])
+        if "SSL_CERT_DIR" in os.environ
+        else []
+    )
     report["system_trust"] = audit_default_trust()
     report["tls_verification_bypass"] = (
         "FAIL"
@@ -163,6 +188,7 @@ def audit_environment() -> dict:
         for category in ("packages", "bundles")
         for entry in report[category].values()
     ]
+    checks.extend(entry["status"] for entry in report["configured_ca_directory_files"])
     report["bundle_status"] = (
         "PASS"
         if all(status == "PASS" for status in checks)
