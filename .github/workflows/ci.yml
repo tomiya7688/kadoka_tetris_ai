@@ -46,6 +46,40 @@ jobs:
             exit 1
           fi
 
+      - name: Verify and scan C++ headers for unreachable code
+        shell: bash
+        run: |
+          flags=(-std=c++20 -DNDEBUG -Wunreachable-code-aggressive -Werror=unreachable-code -Werror=unreachable-code-aggressive -Icore/include -Iruntime/include -x c++ -fsyntax-only)
+          cat > "$RUNNER_TEMP/unreachable-probe.hpp" <<'EOF'
+          inline int header_probe() {
+              return 1;
+              return 2;
+          }
+          EOF
+          for macro in '' '-DKADOKA_TETRIS_C_API_BUILD'; do
+            if clang++-18 "${flags[@]}" ${macro:+"$macro"} "$RUNNER_TEMP/unreachable-probe.hpp" 2> "$RUNNER_TEMP/header-probe.log"; then
+              echo "The intentional unreachable header statement was not rejected."
+              exit 1
+            fi
+            if ! grep -Eq 'error:.*\[-Werror,-Wunreachable-code' "$RUNNER_TEMP/header-probe.log"; then
+              cat "$RUNNER_TEMP/header-probe.log"
+              echo "The header probe failed for a reason other than unreachable code."
+              exit 1
+            fi
+          done
+          git ls-files -z -- '*.h' '*.hpp' > "$RUNNER_TEMP/tracked-headers"
+          mapfile -d '' -t headers < "$RUNNER_TEMP/tracked-headers"
+          if ((${#headers[@]} == 0)); then
+            echo "No tracked C++ headers found."
+            exit 1
+          fi
+          for header in "${headers[@]}"; do
+            echo "Checking $header"
+            clang++-18 "${flags[@]}" "$header"
+            clang++-18 "${flags[@]}" -DKADOKA_TETRIS_C_API_BUILD "$header"
+          done
+          echo "Checked ${#headers[@]} tracked headers in both C API configurations."
+
       - name: Configure C++ reachability build
         run: >-
           cmake -S . -B build-cpp-reachability -DCMAKE_BUILD_TYPE=Release
