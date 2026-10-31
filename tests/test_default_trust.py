@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
@@ -99,6 +100,115 @@ class DefaultTrustTests(unittest.TestCase):
             self.assertEqual(
                 json.loads(output.call_args.args[0])["bundle_status"], "FAIL"
             )
+
+    # {
+    #   責務: [test_configured_ca_directories: hash名のCAと無効な経路を検査する]
+    #   処理: [複数ディレクトリの対象ファイルと不正指定を確認する]
+    #   引数: [self: テストインスタンス]
+    #   戻り値: [なし]
+    # }
+    def test_configured_ca_directories(self) -> None:
+        with TemporaryDirectory() as root:
+            first = Path(root) / "first"
+            second = Path(root) / "second"
+            first.mkdir()
+            second.mkdir()
+            blocked = first / "abcdef01.0"
+            clean = second / "12345678.1"
+            ignored = second / "other.pem"
+            for path in (blocked, clean, ignored):
+                path.write_text("fixture", encoding="ascii")
+            with patch.object(audit, "audit_bundle") as inspect:
+                inspect.side_effect = lambda path: {
+                    "path": str(path),
+                    "status": "FAIL" if path == blocked else "PASS",
+                }
+                report = audit.audit_configured_ca_directories(
+                    os.pathsep.join((str(first), str(second)))
+                )
+            self.assertEqual([item["status"] for item in report], ["FAIL", "PASS"])
+            self.assertEqual(inspect.call_count, 2)
+            for value in (str(first) + os.pathsep, str(first / "missing")):
+                with self.subTest(value=value), self.assertRaises(ValueError):
+                    audit.audit_configured_ca_directories(value)
+
+    # {
+    #   責務: [test_real_certificate_in_directory: 実PEMから対象証明書を検出する]
+    #   処理: [certifi内の証明書を一時ディレクトリへ置きDER fingerprintを照合する]
+    #   引数: [self: テストインスタンス]
+    #   戻り値: [なし]
+    # }
+    def test_real_certificate_in_directory(self) -> None:
+        import certifi
+
+        bundle = Path(certifi.where()).read_bytes()
+        match = re.search(
+            rb"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+            bundle,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        pem = match.group(0)
+        der = audit.ssl.PEM_cert_to_DER_cert(pem.decode("ascii"))
+        fingerprint = hashlib.sha256(der).hexdigest()
+        with TemporaryDirectory() as root:
+            (Path(root) / "abcdef01.0").write_bytes(pem)
+            with patch.object(audit, "BLOCKED_ROOT_SHA256", {fingerprint}):
+                report = audit.audit_configured_ca_directories(root)
+            self.assertEqual(report[0]["status"], "FAIL")
+            self.assertEqual(report[0]["blocked_roots"], [fingerprint])
+
+    # {
+    #   責務: [test_configured_ca_directory_failure: 対象CAの検出で監査を失敗させる]
+    #   処理: [bundleが成功でも明示ディレクトリのFAILを終了値に反映する]
+    #   引数: [self: テストインスタンス]
+    #   戻り値: [なし]
+    # }
+    def test_configured_ca_directory_failure(self) -> None:
+        with (
+            patch.object(audit, "version", side_effect=["26.2.2", "2026.10.19"]),
+            patch.object(audit, "import_module"),
+            patch.object(audit, "audit_bundle", return_value={"status": "PASS"}),
+            patch.object(audit, "load_pip_trust_settings", return_value=[]),
+            patch.object(
+                audit, "audit_default_trust", return_value={"status": "UNVERIFIED"}
+            ),
+            patch.object(
+                audit,
+                "audit_configured_ca_directories",
+                return_value=[{"status": "FAIL"}],
+            ),
+            patch.dict(os.environ, {"SSL_CERT_DIR": "configured"}, clear=True),
+            patch("builtins.print"),
+        ):
+            self.assertEqual(audit.main(), 1)
+
+    # {
+    #   責務: [test_invalid_configured_directory: 無効な指定をCLIで失敗させる]
+    #   処理: [空文字と存在しないディレクトリのJSONと終了値を確認する]
+    #   引数: [self: テストインスタンス]
+    #   戻り値: [なし]
+    # }
+    def test_invalid_configured_directory(self) -> None:
+        with TemporaryDirectory() as root:
+            for directory in ("", str(Path(root) / "missing")):
+                with (
+                    self.subTest(directory=directory),
+                    patch.object(
+                        audit, "version", side_effect=["26.2.2", "2026.10.19"]
+                    ),
+                    patch.object(audit, "import_module"),
+                    patch.object(
+                        audit, "audit_bundle", return_value={"status": "PASS"}
+                    ),
+                    patch.object(audit, "load_pip_trust_settings", return_value=[]),
+                    patch.dict(os.environ, {"SSL_CERT_DIR": directory}, clear=True),
+                    patch("builtins.print") as output,
+                ):
+                    self.assertEqual(audit.main(), 1)
+                    self.assertEqual(
+                        json.loads(output.call_args.args[0])["bundle_status"], "FAIL"
+                    )
 
     # {
     #   責務: [test_real_context_does_not_write_keylog: 実既定CAの監査がkeylogを作成しない]

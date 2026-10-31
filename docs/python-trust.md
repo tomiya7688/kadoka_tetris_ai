@@ -11,7 +11,7 @@ python tools/audit_python_trust.py
 
 監査はインストール済みの版、`certifi.where()`とpip内蔵certifiが指すPEM実ファイル、SHA-256、CA数、対象G3ルートのDER SHA-256一致をJSONで報告します。CA bundleの中身を更新・削除する処理やネットワーク通信は行いません。古い版、欠落、不正なPEM、対象CA残存、`PIP_TRUSTED_HOST`による検証回避は失敗終了になります。
 
-`PIP_CERT`、`REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`SSL_CERT_FILE`を指定した環境では、その実ファイルも監査します。proxyや認証値は出力しません。未導入の依存関係を自動インストールするのは監査ではなく、上記の明示的な準備コマンドです。
+`PIP_CERT`、`REQUESTS_CA_BUNDLE`、`CURL_CA_BUNDLE`、`SSL_CERT_FILE`を指定した環境では、その実ファイルも監査します。`SSL_CERT_DIR`が指定された場合は各ディレクトリ内のOpenSSL hash名ファイルを監査し、対象rootや不正なファイルを検出すると失敗します。指定値や区切り後の要素が空の場合、または存在しないディレクトリの場合も失敗します。ディレクトリが空でも実チェーンの安全性は未検証です。proxyや認証値は出力しません。未導入の依存関係を自動インストールするのは監査ではなく、上記の明示的な準備コマンドです。
 
 設定ファイル経由の別CAやTLS検証回避を見落とさないため、pip自身の通常モードの設定ローダーも使用します。global・user・siteと`PIP_CONFIG_FILE`、環境変数をpipの読込規則で読み、各セクションの`cert`が指す実bundleを監査します。`trusted-host`が1つでも空白以外の値を持つ場合は失敗します。コマンド別設定や上書きされる設定も保守的に検査するため、特定のpip呼出しで使わない設定が失敗原因になる場合があります。[pipの設定仕様](https://pip.pypa.io/en/stable/topics/configuration/)を確認し、不要な設定は利用者が修正してください。
 
