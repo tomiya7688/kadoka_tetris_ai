@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import ssl
+import stat
 import sys
 
 # 直接実行とunittestのpackage importで同じ読込実装を使う。
@@ -16,6 +17,7 @@ if __package__:
 else:
     from pip_trust_settings import load_pip_trust_settings
 
+HASHED_CA_READ_TIMEOUT_SECONDS = 30
 MINIMUM_VERSIONS = {"pip": (26, 2, 2), "certifi": (2026, 10, 19)}
 # 公開資料roots.jsonのemSign G3 root DER SHA-256。AAA交差署名経路は別検証。
 BLOCKED_ROOT_SHA256 = {
@@ -73,9 +75,11 @@ def audit_default_trust() -> dict:
 #   引数: [path: PEM bundleの実ファイル]
 #   戻り値: [path、SHA256、CA数、対象CA、PASSまたはFAILを持つ辞書]
 # }
-def audit_bundle(path: Path) -> dict:
+def audit_bundle(path: Path, bundle: bytes | None = None) -> dict:
     # system storeを暗黙に混ぜず、このbundleの収録内容だけを検査する。
-    bundle = path.read_bytes()
+    supplied = bundle is not None
+    if bundle is None:
+        bundle = path.read_bytes()
     # PEM外のUTF-8コメントを除き、証明書ブロック自体はASCIIとして厳密に読む。
     labels = re.findall(rb"-----(?:BEGIN|END) ([^\r\n-]+)-----", bundle)
     if any(label != b"CERTIFICATE" for label in labels):
@@ -97,12 +101,75 @@ def audit_bundle(path: Path) -> dict:
     certificates = context.get_ca_certs(binary_form=True)
     blocked = blocked_roots(certificates)
     return {
-        "path": str(path.resolve()),
+        "path": str(path.absolute() if supplied else path.resolve()),
         "sha256": hashlib.sha256(bundle).hexdigest(),
         "ca_count": len(certificates),
         "blocked_roots": blocked,
         "status": "PASS" if certificates and not blocked else "FAIL",
     }
+
+
+# {
+#   責務: [_read_hashed_ca_file: OpenSSLのhash名ファイルを読み込む]
+#   処理: [可能なら非ブロッキングで開き、実体の種類とサイズを検査する]
+#   引数: [path: CAファイル]
+#   戻り値: [上限以内のファイル内容。対象外や読込不能は例外]
+# }
+def _read_hashed_ca_file(path: Path) -> bytes:
+    limit = 4 * 1024 * 1024
+    descriptor = os.open(
+        path, os.O_RDONLY | getattr(os, "O_BINARY", 0) | getattr(os, "O_NONBLOCK", 0)
+    )
+    with os.fdopen(descriptor, "rb") as source:
+        details = os.fstat(source.fileno())
+        if not stat.S_ISREG(details.st_mode) or details.st_size > limit:
+            raise ValueError(
+                "Hashed CA entry must be a regular file no larger than 4 MiB"
+            )
+        contents = source.read(limit + 1)
+        if len(contents) > limit:
+            raise ValueError("Hashed CA file exceeds 4 MiB")
+        return contents
+
+
+# {
+#   責務: [read_hashed_ca_file: Windowsの停止を時間制限して読み込む]
+#   処理: [Windowsでは子プロセスで読み、タイムアウト時に終了させる]
+#   引数: [path: CAファイル]
+#   戻り値: [検査済み内容。失敗時は例外]
+# }
+def read_hashed_ca_file(path: Path) -> bytes:
+    if os.name != "nt":
+        return _read_hashed_ca_file(path)
+    if __package__:
+        from .windows_job import run_in_job
+    else:
+        from windows_job import run_in_job
+    # The isolated base interpreter waits for the parent before running the
+    # worker; no virtualenv launcher or site hooks can spawn an unassigned child.
+    bootstrap = (
+        "import os, runpy, sys\n"
+        "if sys.stdin.buffer.read(1) != b'1': sys.exit(1)\n"
+        "script, target = sys.argv[1:3]\n"
+        "sys.path.insert(0, os.path.dirname(script))\n"
+        "sys.argv = [script, '--read-hashed-ca-file', target]\n"
+        "runpy.run_path(script, run_name='__main__')\n"
+    )
+    executable = getattr(sys, "_base_executable", None)
+    if not executable:
+        raise ValueError("Base Python executable is unavailable")
+    return run_in_job(
+        [
+            executable,
+            "-I",
+            "-S",
+            "-c",
+            bootstrap,
+            str(Path(__file__).absolute()),
+            str(path),
+        ],
+        HASHED_CA_READ_TIMEOUT_SECONDS,
+    )
 
 
 # {
@@ -121,7 +188,7 @@ def audit_configured_ca_directories(value: str) -> list[dict]:
             raise ValueError("Configured SSL_CERT_DIR is not a directory")
         for entry in sorted(directory.iterdir()):
             if re.fullmatch(r"[0-9a-fA-F]{8}\.[0-9]+", entry.name):
-                results.append(audit_bundle(entry))
+                results.append(audit_bundle(entry, read_hashed_ca_file(entry)))
     return results
 
 
@@ -224,4 +291,10 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    if len(sys.argv) == 3 and sys.argv[1] == "--read-hashed-ca-file":
+        try:
+            sys.stdout.buffer.write(_read_hashed_ca_file(Path(sys.argv[2])))
+        except (OSError, ValueError):
+            raise SystemExit(1)
+    else:
+        raise SystemExit(main())
