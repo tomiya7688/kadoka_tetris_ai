@@ -139,7 +139,8 @@ def _read_hashed_ca_file(path: Path) -> bytes:
 #   戻り値: [検査済み内容。失敗時は例外]
 # }
 def read_hashed_ca_file(path: Path) -> bytes:
-    if os.name != "nt":
+    # Keep both platform branches visible to static reachability checks.
+    if getattr(os, "name") != "nt":
         return _read_hashed_ca_file(path)
     if __package__:
         from .windows_job import run_in_job
